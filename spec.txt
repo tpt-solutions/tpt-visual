@@ -1,0 +1,656 @@
+# tpt-visual
+
+**A memory-safe, GPU-accelerated video processing engine. Real-time compositing, color science, and effects. The brain of the TPT AV visual stack.**
+
+**License:** MIT  
+**Status:** Early-stage / Pre-1.0  
+**Ecosystem:** [TPT Solutions Open Source](https://opensource.tptsolutions.co.nz/)
+
+---
+
+## 1. Vision & Philosophy
+
+`tpt-visual` is the **video processing layer** of the TPT AV Stack. It provides the foundational crates required to build non-destructive video editors, motion graphics tools, live streaming applications, and visual effects pipelines.
+
+The Rust graphics ecosystem has excellent primitives (`wgpu` for GPU abstraction, `image` for basic manipulation) but **no unified framework** for professional video processing. There is no standard way to represent a non-destructive video edit, no GPU-accelerated compositor that reads from a timeline, and no pure-Rust color science engine that handles HDR, wide gamut, and broadcast standards.
+
+`tpt-visual` fills that gap. It is the "glue" that turns raw video frames from `tpt-kinetix` into a professional, non-destructive video application.
+
+### Core Tenets
+
+1. **Strictly Non-Destructive:** The original video files on disk are never mutated. The engine only manages metadata, edit decisions, and real-time GPU-based transformations.
+2. **GPU-Accelerated:** All compositing, color transforms, and effects run on the GPU via `wgpu` (WebGPU) for maximum performance and cross-platform compatibility.
+3. **Real-Time Safe:** The rendering pipeline is designed for 60fps+ playback of 4K/8K video with multiple effects layers.
+4. **Professional Color Science:** Full support for broadcast standards (Rec.709, Rec.2020, DCI-P3), HDR (HDR10, HLG, Dolby Vision metadata), and industry workflows (ACES, OCIO compatibility).
+5. **Clean Thread Boundaries:** Strict separation between the Main/UI Thread (can allocate, can block) and the Render Thread (GPU command submission, minimal CPU overhead).
+6. **Pure MIT Licensing:** No GPL/LGPL/MPL dependencies. Enforced via `cargo-deny` in CI.
+7. **Composable Architecture:** Each sub-crate is independently useful. A developer can use just the timeline, just the compositor, or just the color engine.
+
+---
+
+## 2. Ecosystem Integration
+
+`tpt-visual` sits in the **Processing Layer** of the TPT AV Stack, consuming decoded video frames from `tpt-kinetix` and outputting to the display or encoder.
+
+| Crate | Role | Relationship to `tpt-visual` |
+| :--- | :--- | :--- |
+| **`tpt-kinetix`** | Media containers, video codecs | Decodes video files into raw frames (YUV/RGB). `tpt-visual` consumes these frames. |
+| **`tpt-visual`** | **Video processing (this repo)** | Manages the non-destructive timeline, composites video on the GPU, applies color grading and effects. |
+| **`tpt-audio`** | Audio processing | Provides synchronized audio playback. `tpt-visual` syncs video frames to the audio timeline. |
+
+### Data Flow
+
+tpt-kinetix (decodes video files → raw frames YUV/RGB)
+↓
+tpt-av-visual-timeline (manages non-destructive edit state)
+↓
+tpt-av-visual-compositor (GPU-based rendering, applies effects)
+↓
+tpt-av-visual-color (color space conversion, HDR tone mapping)
+↓
+Display / Encoder (outputs to screen or file)
+
+
+---
+
+## 3. Repository Architecture (Cargo Workspace)
+
+All sub-crates share the `tpt-av-visual-` prefix for ecosystem coherence and clean namespace resolution on crates.io.
+
+```text
+tpt-visual/                        # GitHub Repository / Workspace Root
+├── Cargo.toml                     # Workspace manifest
+├── deny.toml                      # cargo-deny license audit config
+├── LICENSE-MIT
+├── README.md
+├── DESIGN.md                      # This file
+│
+├── tpt-av-visual-utils/           # Shared types, math helpers, error handling
+│   ├── src/
+│   │   ├── lib.rs
+│   │   ├── frame.rs               # Video frame types (YUV, RGB, RGBA)
+│   │   ├── pixel_format.rs        # Pixel format enums and conversions
+│   │   ├── resolution.rs          # Resolution, aspect ratio, frame rate
+│   │   ├── time.rs                # Timecode, duration, frame counting
+│   │   └── error.rs               # `VisualError` enum
+│   └── Cargo.toml
+│
+├── tpt-av-visual-timeline/        # Pure data model. Non-destructive edit state.
+│   ├── src/
+│   │   ├── lib.rs
+│   │   ├── session.rs             # Top-level session (collection of tracks)
+│   │   ├── track.rs               # Video track (collection of clips)
+│   │   ├── clip.rs                # Clip (reference to video asset + time range)
+│   │   ├── asset.rs               # VideoAsset (file path, duration, resolution)
+│   │   ├── transform.rs           # Position, scale, rotation, opacity
+│   │   ├── keyframe.rs            # Keyframe animation system
+│   │   ├── edit.rs                # Edit operations (insert, delete, move, split)
+│   │   └── history.rs             # Undo/redo history
+│   ├── Cargo.toml
+│   └── tests/
+│
+├── tpt-av-visual-compositor/      # GPU-accelerated rendering engine
+│   ├── src/
+│   │   ├── lib.rs
+│   │   ├── graph.rs               # Compositing graph (nodes, edges)
+│   │   ├── node.rs                # Compositing node trait
+│   │   ├── nodes/                 # Built-in compositing nodes
+│   │   │   ├── source.rs          # Video source (reads from asset)
+│   │   │   ├── transform.rs       # Position, scale, rotation
+│   │   │   ├── blend.rs           # Blend modes (normal, multiply, screen, etc.)
+│   │   │   ├── mask.rs            # Alpha masking and keying
+│   │   │   ├── transition.rs      # Crossfade, wipe, dissolve
+│   │   │   └── output.rs          # Final output node
+│   │   ├── renderer.rs            # Reads timeline state, renders frames
+│   │   ├── gpu/                   # GPU resource management
+│   │   │   ├── device.rs          # wgpu device and queue
+│   │   │   ├── texture.rs         # GPU texture management
+│   │   │   ├── pipeline.rs        # Render pipeline management
+│   │   │   └── shader.rs          # WGSL shader management
+│   │   └── scheduler.rs           # Lock-free state synchronization
+│   ├── Cargo.toml
+│   └── tests/
+│
+├── tpt-av-visual-color/           # Color science and HDR processing
+│   ├── src/
+│   │   ├── lib.rs
+│   │   ├── color_space.rs         # Color space definitions (Rec.709, Rec.2020, P3)
+│   │   ├── transfer.rs            # Transfer functions (sRGB, PQ, HLG, linear)
+│   │   ├── gamut.rs               # Gamut mapping and conversion
+│   │   ├── hdr.rs                 # HDR tone mapping (Reinhard, ACES, custom)
+│   │   ├── luts.rs                # 1D and 3D LUT loading and application
+│   │   ├── aces.rs                # ACES (Academy Color Encoding System) transforms
+│   │   └── ocio.rs                # OpenColorIO config compatibility (future)
+│   ├── Cargo.toml
+│   └── tests/
+│
+├── tpt-av-visual-effects/         # Video effects and filters
+│   ├── src/
+│   │   ├── lib.rs
+│   │   ├── effect.rs              # Effect trait
+│   │   ├── effects/               # Built-in effects
+│   │   │   ├── blur.rs            # Gaussian, box, motion blur
+│   │   │   ├── sharpen.rs         # Sharpening and edge enhancement
+│   │   │   ├── color_correct.rs   # Brightness, contrast, saturation, hue
+│   │   │   ├── curves.rs          # Tone curves (RGB, luminance)
+│   │   │   ├── levels.rs          # Levels adjustment
+│   │   │   ├── chroma_key.rs      # Green/blue screen keying
+│   │   │   ├── noise.rs           # Noise generation and reduction
+│   │   │   └── vignette.rs        # Vignette effect
+│   │   └── gpu_shaders/           # WGSL shaders for GPU effects
+│   │       ├── blur.wgsl
+│   │       ├── color_correct.wgsl
+│   │       └── chroma_key.wgsl
+│   ├── Cargo.toml
+│   └── tests/
+│
+└── examples/                      # Headless renderers and demos
+    ├── headless_render.rs         # Renders a timeline JSON to video file
+    ├── simple_player.rs           # Plays a single video file
+    └── compositor_demo.rs         # Composites multiple video layers
+
+4. Core API Design
+4.1. The Timeline Model (tpt-av-visual-timeline)
+The timeline is the pure data model of a non-destructive video edit. It does not process video; it only describes what video should be displayed, when, and how.
+
+/// A complete video editing session.
+pub struct Session {
+    /// Unique session identifier.
+    pub id: SessionId,
+    /// Session name (e.g., "My Documentary").
+    pub name: String,
+    /// Frame rate for the entire session (e.g., 24, 30, 60).
+    pub frame_rate: FrameRate,
+    /// Resolution for the entire session (e.g., 1920x1080, 3840x2160).
+    pub resolution: Resolution,
+    /// All tracks in the session (ordered by z-index).
+    pub tracks: Vec<Track>,
+    /// Global metadata (timecode start, color space, etc.).
+    pub metadata: SessionMetadata,
+}
+
+/// A single video track containing multiple clips.
+pub struct Track {
+    /// Unique track identifier.
+    pub id: TrackId,
+    /// Track name (e.g., "Video 1", "Title Graphics").
+    pub name: String,
+    /// All clips on this track, sorted by start time.
+    pub clips: Vec<Clip>,
+    /// Track-level opacity (0.0 = transparent, 1.0 = opaque).
+    pub opacity: f32,
+    /// Track-level blend mode.
+    pub blend_mode: BlendMode,
+    /// Whether the track is hidden.
+    pub hidden: bool,
+    /// Whether the track is locked.
+    pub locked: bool,
+}
+
+/// A non-destructive reference to a video asset.
+pub struct Clip {
+    /// Unique clip identifier.
+    pub id: ClipId,
+    /// Reference to the source video asset.
+    pub asset_id: AssetId,
+    /// Start time of the clip on the timeline (in frames).
+    pub start_frame: u64,
+    /// Offset into the source asset (in frames).
+    /// Allows trimming the beginning of the asset.
+    pub source_offset: u64,
+    /// Duration of the clip (in frames).
+    pub duration_frames: u64,
+    /// Spatial transform (position, scale, rotation).
+    pub transform: Transform,
+    /// Opacity (0.0 to 1.0).
+    pub opacity: f32,
+    /// Blend mode.
+    pub blend_mode: BlendMode,
+    /// Keyframe animations (optional).
+    pub keyframes: Vec<KeyframeTrack>,
+    /// Applied effects (optional).
+    pub effects: Vec<EffectInstance>,
+}
+
+/// A reference to a video file on disk.
+pub struct VideoAsset {
+    /// Unique asset identifier.
+    pub id: AssetId,
+    /// File path to the source video file.
+    pub file_path: PathBuf,
+    /// Duration of the asset (in frames).
+    pub duration_frames: u64,
+    /// Frame rate of the asset.
+    pub frame_rate: FrameRate,
+    /// Resolution of the asset.
+    pub resolution: Resolution,
+    /// Pixel format of the asset (e.g., YUV420, RGB).
+    pub pixel_format: PixelFormat,
+    /// Color space of the asset (e.g., Rec.709, Rec.2020).
+    pub color_space: ColorSpace,
+}
+
+/// Spatial transform for a clip.
+pub struct Transform {
+    /// Position (x, y) in pixels.
+    pub position: (f32, f32),
+    /// Scale factor (1.0 = 100%).
+    pub scale: (f32, f32),
+    /// Rotation in degrees.
+    pub rotation: f32,
+    /// Anchor point (rotation center) as normalized coordinates (0.0 to 1.0).
+    pub anchor: (f32, f32),
+}
+
+/// A keyframe animation track.
+pub struct KeyframeTrack {
+    /// Property being animated (e.g., "transform.position.x").
+    pub property: String,
+    /// Keyframe points (time, value).
+    pub keyframes: Vec<Keyframe>,
+    /// Interpolation method (linear, cubic, bezier).
+    pub interpolation: InterpolationMethod,
+}
+
+/// A single keyframe point.
+pub struct Keyframe {
+    /// Time position (in frames).
+    pub frame: u64,
+    /// Value at this point.
+    pub value: f32,
+    /// Bezier control points (for cubic interpolation).
+    pub bezier: Option<(f32, f32, f32, f32)>,
+}
+
+4.2. The Compositor (tpt-av-visual-compositor)
+The compositor is the GPU-accelerated rendering engine. It reads the timeline state and renders video frames.
+
+/// The main video compositing engine.
+pub struct Compositor {
+    /// GPU device and queue.
+    device: wgpu::Device,
+    queue: wgpu::Queue,
+    /// Compositing graph (nodes, edges).
+    graph: CompositorGraph,
+    /// Current frame rate.
+    frame_rate: FrameRate,
+    /// Current resolution.
+    resolution: Resolution,
+    /// Texture cache for video assets.
+    texture_cache: HashMap<AssetId, GpuTexture>,
+}
+
+/// A single compositing node in the graph.
+pub trait CompositorNode: Send + Sync {
+    /// Renders this node's output to the provided texture.
+    ///
+    /// # Parameters
+    /// - `encoder`: wgpu command encoder
+    /// - `output`: Target texture to render into
+    /// - `frame`: Current frame number
+    fn render(
+        &mut self,
+        encoder: &mut wgpu::CommandEncoder,
+        output: &wgpu::TextureView,
+        frame: u64,
+    ) -> Result<(), VisualError>;
+
+    /// Returns the input nodes this node depends on.
+    fn inputs(&self) -> Vec<NodeId>;
+}
+
+/// The timeline renderer. Reads timeline state and renders frames.
+pub struct TimelineRenderer {
+    /// Reference to the timeline session.
+    session: Arc<RwLock<Session>>,
+    /// Video assets (decoded frames).
+    assets: HashMap<AssetId, VideoAssetCache>,
+    /// Current playhead position (in frames).
+    playhead_frame: u64,
+    /// The compositor engine.
+    compositor: Compositor,
+}
+
+impl TimelineRenderer {
+    /// Renders the next frame from the timeline.
+    ///
+    /// # Parameters
+    /// - `output`: Target texture or surface to render into
+    ///
+    /// # Returns
+    /// - `Ok(())` if rendering succeeded
+    /// - `Err(VisualError)` if rendering failed
+    pub fn render_frame(&mut self, output: &wgpu::TextureView) -> Result<(), VisualError> {
+        // 1. Read timeline state (lock-free snapshot)
+        // 2. For each active clip, fetch video frame from asset cache
+        // 3. Upload frame to GPU texture
+        // 4. Build compositing graph from timeline
+        // 5. Execute graph (render all nodes)
+        // 6. Advance playhead
+        todo!()
+    }
+}
+
+4.3. The Color Engine (tpt-av-visual-color)
+The color engine handles color space conversions, HDR tone mapping, and professional color workflows.
+
+/// Color space definitions.
+pub enum ColorSpace {
+    /// ITU-R BT.709 (HD television, sRGB).
+    Rec709,
+    /// ITU-R BT.2020 (UHD television, wide gamut).
+    Rec2020,
+    /// DCI-P3 (digital cinema).
+    DciP3,
+    /// sRGB (web, consumer displays).
+    Srgb,
+    /// Linear RGB (no transfer function).
+    Linear,
+    /// ACES (Academy Color Encoding System).
+    Aces,
+    /// Custom color space (defined by primaries and white point).
+    Custom {
+        primaries: [[f32; 2]; 3],
+        white_point: [f32; 2],
+    },
+}
+
+/// Transfer function (gamma curve).
+pub enum TransferFunction {
+    /// sRGB transfer function.
+    Srgb,
+    /// Linear (no transfer function).
+    Linear,
+    /// SMPTE ST 2084 (PQ, for HDR10).
+    Pq,
+    /// ARIB STD-B67 (HLG, for broadcast HDR).
+    Hlg,
+    /// Pure gamma curve (e.g., 2.2, 2.4).
+    Gamma(f32),
+}
+
+/// HDR tone mapping operator.
+pub enum ToneMapper {
+    /// Reinhard tone mapping (simple, fast).
+    Reinhard,
+    /// ACES filmic tone mapping (industry standard).
+    AcesFilmic,
+    /// Custom tone mapping curve.
+    Custom {
+        /// Tone curve as a list of (input, output) points.
+        curve: Vec<(f32, f32)>,
+    },
+}
+
+/// Color processing pipeline.
+pub struct ColorPipeline {
+    /// Input color space.
+    input_space: ColorSpace,
+    /// Input transfer function.
+    input_transfer: TransferFunction,
+    /// Output color space.
+    output_space: ColorSpace,
+    /// Output transfer function.
+    output_transfer: TransferFunction,
+    /// Tone mapper (for HDR → SDR conversion).
+    tone_mapper: Option<ToneMapper>,
+    /// 3D LUT (optional).
+    lut: Option<Lut3D>,
+}
+
+impl ColorPipeline {
+    /// Applies the color pipeline to a GPU texture.
+    pub fn apply(
+        &self,
+        encoder: &mut wgpu::CommandEncoder,
+        input: &wgpu::TextureView,
+        output: &wgpu::TextureView,
+    ) -> Result<(), VisualError> {
+        // 1. Convert input to linear RGB
+        // 2. Apply color space conversion (if needed)
+        // 3. Apply tone mapping (if HDR → SDR)
+        // 4. Apply 3D LUT (if provided)
+        // 5. Convert to output transfer function
+        todo!()
+    }
+}
+
+5. GPU Architecture
+5.1. wgpu Integration
+tpt-visual uses wgpu (WebGPU) for all GPU operations. This provides:
+Cross-platform compatibility: Works on Windows, macOS, Linux, and even WebAssembly.
+Modern API: Vulkan-like API with explicit resource management.
+Future-proof: WebGPU is the next-generation web graphics standard.
+5.2. Texture Management
+Video frames are uploaded to GPU textures for processing:
+
+/// A GPU texture holding a video frame.
+pub struct GpuTexture {
+    /// The wgpu texture.
+    texture: wgpu::Texture,
+    /// Texture view for sampling.
+    view: wgpu::TextureView,
+    /// Sampler for filtering.
+    sampler: wgpu::Sampler,
+    /// Resolution.
+    resolution: Resolution,
+    /// Pixel format.
+    format: wgpu::TextureFormat,
+}
+
+impl GpuTexture {
+    /// Uploads a CPU-side frame to the GPU.
+    pub fn upload(
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        frame: &VideoFrame,
+    ) -> Result<Self, VisualError> {
+        // 1. Create texture with appropriate format
+        // 2. Write frame data to texture
+        // 3. Create view and sampler
+        todo!()
+    }
+}
+
+5.3. Shader Pipeline
+All effects and compositing operations use WGSL (WebGPU Shading Language):
+
+// Example: Gaussian blur shader (blur.wgsl)
+
+@group(0) @binding(0) var input_texture: texture_2d<f32>;
+@group(0) @binding(1) var input_sampler: sampler;
+@group(0) @binding(2) var<uniform> blur_params: BlurParams;
+
+struct BlurParams {
+    direction: vec2<f32>,  // (1,0) for horizontal, (0,1) for vertical
+    radius: f32,
+}
+
+struct VertexOutput {
+    @builtin(position) position: vec4<f32>,
+    @location(0) tex_coords: vec2<f32>,
+}
+
+@vertex
+fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
+    // Full-screen triangle
+    var positions = array<vec2<f32>, 3>(
+        vec2<f32>(-1.0, -1.0),
+        vec2<f32>( 3.0, -1.0),
+        vec2<f32>(-1.0,  3.0)
+    );
+    
+    var output: VertexOutput;
+    output.position = vec4<f32>(positions[vertex_index], 0.0, 1.0);
+    output.tex_coords = (positions[vertex_index] + 1.0) * 0.5;
+    return output;
+}
+
+@fragment
+fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+    var color = vec4<f32>(0.0);
+    var total_weight = 0.0;
+    
+    // Gaussian blur kernel
+    for (var i = -4; i <= 4; i++) {
+        let offset = vec2<f32>(f32(i)) * blur_params.direction;
+        let weight = exp(-0.5 * f32(i * i) / (blur_params.radius * blur_params.radius));
+        color += textureSample(input_texture, input_sampler, input.tex_coords + offset) * weight;
+        total_weight += weight;
+    }
+    
+    return color / total_weight;
+}
+
+6. Real-Time Performance Architecture
+6.1. Frame Caching
+Video frames are pre-decoded and cached in GPU memory for instant playback:
+
+/// Cache for decoded video frames.
+pub struct VideoAssetCache {
+    /// Asset metadata.
+    asset: VideoAsset,
+    /// Decoded frames (CPU-side, ready for GPU upload).
+    frames: Vec<VideoFrame>,
+    /// GPU textures (uploaded to GPU).
+    gpu_textures: HashMap<u64, GpuTexture>,
+    /// Background decoder thread.
+    decoder_thread: Option<JoinHandle<()>>,
+}
+
+impl VideoAssetCache {
+    /// Pre-decodes frames in the background.
+    pub fn prefetch(&mut self, frame_range: Range<u64>) {
+        // Spawn background thread to decode frames
+        // Upload to GPU as they become available
+    }
+
+    /// Gets a frame for rendering (may block if not cached).
+    pub fn get_frame(&mut self, frame: u64) -> Result<&GpuTexture, VisualError> {
+        // Return cached GPU texture
+        // If not cached, decode and upload synchronously (slow path)
+        todo!()
+    }
+}
+
+6.2. Render Thread vs. UI Thread
+
+Main/UI Thread (Can Allocate, Can Block)
+│
+│  Mutate timeline state
+│  Load/unload video assets
+│  Update UI
+│  Trigger frame prefetching
+│
+Render Thread (Minimal CPU, GPU-Bound)
+│
+│  Read timeline state (lock-free snapshot)
+│  Build compositing graph
+│  Submit GPU commands
+│  Present frames to display
+
+7. Roadmap
+Phase 1: Foundation & Timeline Model (Current)
+tpt-av-visual-utils with shared types (VideoFrame, Resolution, FrameRate)
+tpt-av-visual-timeline with core structs (Session, Track, Clip, Transform)
+Unit tests for timeline math (clip splitting, keyframe interpolation)
+cargo-deny CI pipeline enforcing pure MIT
+Phase 2: GPU Compositor Core
+tpt-av-visual-compositor with wgpu device initialization
+Basic compositing nodes (source, transform, blend, output)
+TimelineRenderer that reads timeline state and renders frames
+Lock-free state synchronization between Main Thread and Render Thread
+Headless CLI renderer that takes a timeline JSON and outputs video file
+Phase 3: Color Science
+tpt-av-visual-color with color space definitions
+Transfer function conversions (sRGB, linear, PQ, HLG)
+Gamut mapping and conversion (Rec.709 ↔ Rec.2020 ↔ P3)
+HDR tone mapping (Reinhard, ACES)
+3D LUT loading and application
+Phase 4: Effects & Advanced Compositing
+tpt-av-visual-effects with GPU shaders
+Built-in effects (blur, sharpen, color correct, chroma key)
+Advanced compositing (masking, keying, transitions)
+Keyframe animation system with bezier interpolation
+Phase 5: Asset Management & Optimization
+Integration with tpt-kinetix for decoding video files
+Background frame prefetching and caching
+Proxy generation for smooth 4K/8K playback
+GPU memory management and texture pooling
+8. Dependency & Licensing Rules
+Allowed Dependencies (Permissive Only)
+tpt-av-visual-utils (internal)
+tpt-av-visual-timeline (internal)
+tpt-av-visual-compositor (internal)
+tpt-av-visual-color (internal)
+tpt-av-visual-effects (internal)
+tpt-kinetix (MIT) — for decoding video files
+wgpu (MIT/Apache) — GPU abstraction (WebGPU)
+image (MIT) — basic image loading (for LUTs, thumbnails)
+serde (MIT/Apache) — serialization for timeline state
+log (MIT/Apache) — logging facade
+Banned Dependencies
+ffmpeg-sys / ffmpeg-next (LGPL/GPL)
+opencv (Apache-2.0, but heavy and C++-based)
+Any crate with GPL, LGPL, AGPL, or MPL in its dependency tree
+Enforcement
+The deny.toml file enforces this automatically:
+
+[licenses]
+unlicensed = "deny"
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+]
+deny = [
+    "GPL-2.0",
+    "GPL-3.0",
+    "LGPL-2.1",
+    "LGPL-3.0",
+    "AGPL-3.0",
+    "MPL-2.0",
+]
+
+9. Workspace Cargo.toml
+
+[workspace]
+resolver = "2"
+members = [
+    "tpt-av-visual-utils",
+    "tpt-av-visual-timeline",
+    "tpt-av-visual-compositor",
+    "tpt-av-visual-color",
+    "tpt-av-visual-effects",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/tpt-solutions/tpt-visual"
+rust-version = "1.75"
+
+[workspace.dependencies]
+tpt-av-visual-utils = { path = "tpt-av-visual-utils", version = "0.1.0" }
+tpt-av-visual-timeline = { path = "tpt-av-visual-timeline", version = "0.1.0" }
+tpt-av-visual-compositor = { path = "tpt-av-visual-compositor", version = "0.1.0" }
+tpt-av-visual-color = { path = "tpt-av-visual-color", version = "0.1.0" }
+tpt-av-visual-effects = { path = "tpt-av-visual-effects", version = "0.1.0" }
+tpt-kinetix = { git = "https://github.com/tpt-solutions/tpt-kinetix", version = "0.1.0" }
+wgpu = "0.19"
+image = "0.25"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+
+10. Contributing & License
+This project is released under the MIT License.
+By contributing to tpt-visual, you agree that:
+Your code will be licensed under the same pure MIT terms.
+You will not introduce any dependency that is GPL, LGPL, AGPL, or MPL licensed.
+All GPU shaders must be written in WGSL (WebGPU Shading Language).
+All color science code must be validated against reference implementations (e.g., ACES central, OpenColorIO).
+This ensures tpt-visual remains free, open, and unencumbered by copyleft restrictions for all future video software development.
