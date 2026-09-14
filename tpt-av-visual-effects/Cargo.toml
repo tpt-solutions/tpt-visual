@@ -1,0 +1,20 @@
+[package]
+name = "tpt-av-visual-effects"
+description = "GPU-accelerated video effects and filters for the TPT AV visual stack"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+authors = ["TPT Solutions"]
+keywords = ["video", "effects", "gpu", "wgsl"]
+categories = ["multimedia::video"]
+
+[dependencies]
+tpt-av-visual-utils = { workspace = true }
+wgpu = { workspace = true }
+pollster = { workspace = true }
+bytemuck = { workspace = true }
+serde = { workspace = true }
+log = { workspace = true }
+thiserror = { workspace = true }

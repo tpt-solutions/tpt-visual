@@ -1,0 +1,21 @@
+[package]
+name = "tpt-av-visual-color"
+description = "Color science, HDR tone mapping, and LUT processing for the TPT AV visual stack"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+authors = ["TPT Solutions"]
+keywords = ["color", "hdr", "aces", "lut"]
+categories = ["multimedia::video"]
+
+[dependencies]
+tpt-av-visual-utils = { workspace = true }
+wgpu = { workspace = true }
+pollster = { workspace = true }
+bytemuck = { workspace = true }
+image = { workspace = true }
+serde = { workspace = true }
+log = { workspace = true }
+thiserror = { workspace = true }

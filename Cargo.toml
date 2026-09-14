@@ -1,0 +1,54 @@
+[workspace]
+resolver = "2"
+members = [
+    "tpt-av-visual-utils",
+    "tpt-av-visual-timeline",
+    "tpt-av-visual-compositor",
+    "tpt-av-visual-color",
+    "tpt-av-visual-effects",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/tpt-solutions/tpt-visual"
+rust-version = "1.75"
+
+[workspace.dependencies]
+# Internal crates.
+tpt-av-visual-utils = { path = "tpt-av-visual-utils", version = "0.1.0" }
+tpt-av-visual-timeline = { path = "tpt-av-visual-timeline", version = "0.1.0" }
+tpt-av-visual-compositor = { path = "tpt-av-visual-compositor", version = "0.1.0" }
+tpt-av-visual-color = { path = "tpt-av-visual-color", version = "0.1.0" }
+tpt-av-visual-effects = { path = "tpt-av-visual-effects", version = "0.1.0" }
+
+# Ecosystem: tpt-kinetix decodes media containers and codecs into raw frames.
+#
+# The upstream repo is a workspace without a facade crate literally named
+# `tpt-kinetix`, so we depend on the three crates we actually consume and pin
+# a rev for reproducible builds.
+tpt-kinetix-core = { git = "https://github.com/tpt-solutions/tpt-kinetix", rev = "9747a2b17c77479377f69ad2f2621e1ed674b518" }
+tpt-kinetix-demux = { git = "https://github.com/tpt-solutions/tpt-kinetix", rev = "9747a2b17c77479377f69ad2f2621e1ed674b518" }
+tpt-kinetix-h264 = { git = "https://github.com/tpt-solutions/tpt-kinetix", rev = "9747a2b17c77479377f69ad2f2621e1ed674b518" }
+
+# GPU abstraction (WebGPU) and friends.
+wgpu = "0.19"
+pollster = "0.3"
+winit = "0.29"
+bytemuck = { version = "1.14", features = ["derive"] }
+arc-swap = "1.7"
+
+# Imaging and serialization.
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+anyhow = "1.0"
+
+# Logging and errors.
+log = "0.4"
+thiserror = "2.0"
+
+[profile.release]
+lto = "thin"

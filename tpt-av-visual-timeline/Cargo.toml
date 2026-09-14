@@ -1,0 +1,20 @@
+[package]
+name = "tpt-av-visual-timeline"
+description = "Pure non-destructive video edit data model for the TPT AV visual stack"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+authors = ["TPT Solutions"]
+keywords = ["video", "timeline", "editor", "nle"]
+categories = ["multimedia::video", "data-structures"]
+
+[dependencies]
+tpt-av-visual-utils = { workspace = true }
+serde = { workspace = true }
+log = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

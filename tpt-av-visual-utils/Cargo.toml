@@ -1,0 +1,16 @@
+[package]
+name = "tpt-av-visual-utils"
+description = "Shared types, math helpers, and error handling for the TPT AV visual stack"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+authors = ["TPT Solutions"]
+keywords = ["video", "graphics", "wgpu", "media"]
+categories = ["multimedia::video"]
+
+[dependencies]
+serde = { workspace = true }
+log = { workspace = true }
+thiserror = { workspace = true }

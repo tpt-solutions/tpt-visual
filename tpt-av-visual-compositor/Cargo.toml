@@ -1,0 +1,52 @@
+[package]
+name = "tpt-av-visual-compositor"
+description = "GPU-accelerated compositing engine for the TPT AV visual stack"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+authors = ["TPT Solutions"]
+keywords = ["video", "gpu", "compositor", "wgpu"]
+categories = ["multimedia::video", "rendering::engine"]
+
+[features]
+default = ["kinetix"]
+# Decode real media files via tpt-kinetix (MP4/H.264). Disable to build
+# without the patent-encumbered H.264 decoder — see tpt-kinetix PATENTS.md.
+kinetix = ["dep:tpt-kinetix-core", "dep:tpt-kinetix-demux", "dep:tpt-kinetix-h264"]
+
+[dependencies]
+tpt-av-visual-utils = { workspace = true }
+tpt-av-visual-timeline = { workspace = true }
+tpt-av-visual-color = { workspace = true }
+tpt-av-visual-effects = { workspace = true }
+wgpu = { workspace = true }
+pollster = { workspace = true }
+bytemuck = { workspace = true }
+arc-swap = { workspace = true }
+image = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+log = { workspace = true }
+thiserror = { workspace = true }
+
+tpt-kinetix-core = { workspace = true, optional = true }
+tpt-kinetix-demux = { workspace = true, optional = true }
+tpt-kinetix-h264 = { workspace = true, optional = true }
+
+[[example]]
+name = "headless_render"
+path = "../examples/headless_render.rs"
+
+[[example]]
+name = "simple_player"
+path = "../examples/simple_player.rs"
+
+[[example]]
+name = "compositor_demo"
+path = "../examples/compositor_demo.rs"
+
+[dev-dependencies]
+winit = { workspace = true }
+anyhow = { workspace = true }
