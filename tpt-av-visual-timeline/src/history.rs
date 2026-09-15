@@ -99,18 +99,33 @@ impl History {
 /// Convenience helpers mirroring the common edit menu actions.
 impl History {
     /// Inserts a clip and records it.
-    pub fn insert_clip(&mut self, session: &mut Session, track_id: TrackId, clip: Clip) -> Result<()> {
+    pub fn insert_clip(
+        &mut self,
+        session: &mut Session,
+        track_id: TrackId,
+        clip: Clip,
+    ) -> Result<()> {
         self.commit(session, edit::InsertClip::new(track_id, clip))
     }
 
     /// Deletes a clip and records it.
-    pub fn delete_clip(&mut self, session: &mut Session, track_id: TrackId, clip_id: ClipId) -> Result<()> {
+    pub fn delete_clip(
+        &mut self,
+        session: &mut Session,
+        track_id: TrackId,
+        clip_id: ClipId,
+    ) -> Result<()> {
         let op = edit::DeleteClip::perform(session, track_id, clip_id)?;
         self.commit(session, op)
     }
 
     /// Splits a clip at `at_frame` and records it.
-    pub fn split_clip(&mut self, session: &mut Session, clip_id: ClipId, at_frame: u64) -> Result<ClipId> {
+    pub fn split_clip(
+        &mut self,
+        session: &mut Session,
+        clip_id: ClipId,
+        at_frame: u64,
+    ) -> Result<ClipId> {
         let op = edit::SplitClip::perform(session, clip_id, at_frame)?;
         let new_id = op.right_id;
         self.undo_stack.push(Box::new(op));

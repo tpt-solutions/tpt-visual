@@ -1,7 +1,10 @@
-//! Minimal MJPEG AVI writer (no copyleft dependencies).
+//! Minimal MJPEG AVI writer.
 //!
-//! Writes an uncompressed-index AVI 1.0 file with a single `MJPG` video
-//! stream. JPEG frames are encoded by the `image` crate.
+//! Writes an AVI 1.0 file with a single `MJPG` video stream and an `idx1`
+//! index — playable by VLC/ffplay and ingestible by most NLEs. JPEG frames
+//! are encoded by the `image` crate, keeping the dependency tree permissive.
+//! Hosts wanting a different container/codec can wrap their own muxer around
+//! [`crate::renderer::TimelineRenderer::render_frame_rgba`].
 
 use std::io::Write;
 
@@ -46,7 +49,13 @@ impl<W: Write> AviWriter<W> {
     }
 
     /// Encodes an RGBA buffer as JPEG and appends it.
-    pub fn add_rgba(&mut self, rgba: &[u8], width: u32, height: u32, quality: u8) -> std::io::Result<()> {
+    pub fn add_rgba(
+        &mut self,
+        rgba: &[u8],
+        width: u32,
+        height: u32,
+        quality: u8,
+    ) -> std::io::Result<()> {
         let mut rgb = Vec::with_capacity((width * height * 3) as usize);
         for px in rgba.chunks_exact(4) {
             rgb.extend_from_slice(&px[..3]);
@@ -57,7 +66,7 @@ impl<W: Write> AviWriter<W> {
                 image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, quality);
             encoder
                 .encode(&rgb, width, height, image::ExtendedColorType::Rgb8)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                .map_err(std::io::Error::other)?;
         }
         self.add_jpeg(&jpeg)
     }
@@ -146,11 +155,7 @@ impl<W: Write> AviWriter<W> {
 
         // idx1 index.
         let mut idx1 = Vec::with_capacity(self.frame_offsets.len() * 16);
-        for (offset, size) in self
-            .frame_offsets
-            .iter()
-            .zip(&self.frame_sizes)
-        {
+        for (offset, size) in self.frame_offsets.iter().zip(&self.frame_sizes) {
             idx1.extend_from_slice(b"00dc");
             idx1.extend_from_slice(&0x10_u32.to_le_bytes()); // AVIIF_KEYFRAME
             idx1.extend_from_slice(offset.to_le_bytes().as_slice());

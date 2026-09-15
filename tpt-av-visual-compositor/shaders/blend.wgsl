@@ -45,19 +45,19 @@ fn blend_channel(dst : vec3<f32>, src : vec3<f32>, mode : u32) -> vec3<f32> {
     switch mode {
         case 1u: { return dst * src; }                                     // multiply
         case 2u: { return vec3<f32>(1.0) - (vec3<f32>(1.0) - dst) * (vec3<f32>(1.0) - src); } // screen
-        case 3u: { // overlay
+        case 3u: { // overlay: dark backdrop multiplies, light backdrop screens
             return select(
-                2.0 * dst * src + 2.0 * dst * (1.0 - dst) - dst * dst,
+                2.0 * dst * src,
                 1.0 - 2.0 * (vec3<f32>(1.0) - dst) * (vec3<f32>(1.0) - src),
                 dst > vec3<f32>(0.5),
             );
         }
         case 4u: { return min(dst, src); }                                 // darken
         case 5u: { return max(dst, src); }                                 // lighten
-        case 6u: { // hard light
+        case 6u: { // hard light: overlay with the roles swapped
             return select(
-                1.0 - 2.0 * (vec3<f32>(1.0) - dst) * (vec3<f32>(1.0) - src),
                 2.0 * src * dst,
+                1.0 - 2.0 * (vec3<f32>(1.0) - src) * (vec3<f32>(1.0) - dst),
                 src > vec3<f32>(0.5),
             );
         }

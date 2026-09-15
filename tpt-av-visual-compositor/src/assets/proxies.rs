@@ -38,12 +38,8 @@ pub fn generate_proxy(frame: &VideoFrame, target_height: u32) -> VideoFrame {
     let scale = f64::from(target_height) / f64::from(frame.height);
     let new_w = ((f64::from(frame.width) * scale).round() as u32).max(1);
     let new_h = target_height.max(1);
-    let resized = image::imageops::resize(
-        &src,
-        new_w,
-        new_h,
-        image::imageops::FilterType::Triangle,
-    );
+    let resized =
+        image::imageops::resize(&src, new_w, new_h, image::imageops::FilterType::Triangle);
     VideoFrame::from_rgba(new_w, new_h, resized.into_raw(), frame.frame_number)
 }
 

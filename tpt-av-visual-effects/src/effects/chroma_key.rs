@@ -1,7 +1,7 @@
 //! Green/blue screen keying with spill suppression.
 
 use super::{param, smoothstep};
-use crate::effect::{Effect, EffectPassDesc, EffectParams};
+use crate::effect::{Effect, EffectParams, EffectPassDesc};
 use std::collections::BTreeMap;
 
 const CHROMA_KEY_WGSL: &str = include_str!("../gpu_shaders/chroma_key.wgsl");
@@ -58,8 +58,7 @@ impl Effect for ChromaKey {
                 f32::from(px[2]) / 255.0,
             ];
             let d = Self::chroma_distance(c, self.key_color);
-            let alpha =
-                smoothstep(self.tolerance, self.tolerance + self.softness, d);
+            let alpha = smoothstep(self.tolerance, self.tolerance + self.softness, d);
 
             let mut rgb = c;
             if self.spill_suppression > 0.0 {
@@ -89,7 +88,12 @@ impl Effect for ChromaKey {
             params: EffectParams::new(width, height),
             curve_lut: None,
         };
-        desc.params.p0 = [self.key_color[0], self.key_color[1], self.key_color[2], self.tolerance];
+        desc.params.p0 = [
+            self.key_color[0],
+            self.key_color[1],
+            self.key_color[2],
+            self.tolerance,
+        ];
         desc.params.p1 = [self.softness, self.spill_suppression, 0.0, 0.0];
         vec![desc]
     }

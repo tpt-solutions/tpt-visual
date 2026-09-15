@@ -122,13 +122,21 @@ impl TransferFunction {
     /// Convenience: decodes all three components of a color.
     #[must_use]
     pub fn decode3(self, code: [f32; 3]) -> [f32; 3] {
-        [self.decode(code[0]), self.decode(code[1]), self.decode(code[2])]
+        [
+            self.decode(code[0]),
+            self.decode(code[1]),
+            self.decode(code[2]),
+        ]
     }
 
     /// Convenience: encodes all three components of a color.
     #[must_use]
     pub fn encode3(self, linear: [f32; 3]) -> [f32; 3] {
-        [self.encode(linear[0]), self.encode(linear[1]), self.encode(linear[2])]
+        [
+            self.encode(linear[0]),
+            self.encode(linear[1]),
+            self.encode(linear[2]),
+        ]
     }
 }
 
@@ -146,7 +154,11 @@ mod tests {
         assert!(close(TransferFunction::Srgb.encode(0.5), 0.735_357, 1e-5));
         assert!(close(TransferFunction::Srgb.decode(0.735_357), 0.5, 1e-5));
         // Linear segment: code 0.04045 decodes exactly to 0.0031308.
-        assert!(close(TransferFunction::Srgb.decode(0.04045), 0.003_130_8, 1e-7));
+        assert!(close(
+            TransferFunction::Srgb.decode(0.04045),
+            0.003_130_8,
+            1e-7
+        ));
     }
 
     #[test]
@@ -169,7 +181,11 @@ mod tests {
     fn hlg_reference_values() {
         // BT.2100 anchors: HLG(0.05) = sqrt(0.15), HLG(1/12) = 0.5,
         // HLG(0.18) = 0.67236 (double-precision cross-check).
-        assert!(close(TransferFunction::Hlg.encode(0.05), 0.387_298_33, 1e-6));
+        assert!(close(
+            TransferFunction::Hlg.encode(0.05),
+            0.387_298_33,
+            1e-6
+        ));
         assert!(close(TransferFunction::Hlg.encode(1.0 / 12.0), 0.5, 1e-6));
         assert!(close(TransferFunction::Hlg.encode(0.18), 0.672_358, 1e-5));
         assert!(close(TransferFunction::Hlg.decode(0.672_358), 0.18, 1e-5));
@@ -204,7 +220,11 @@ mod tests {
 
     #[test]
     fn clamps_negative_input() {
-        for tf in [TransferFunction::Srgb, TransferFunction::Pq, TransferFunction::Hlg] {
+        for tf in [
+            TransferFunction::Srgb,
+            TransferFunction::Pq,
+            TransferFunction::Hlg,
+        ] {
             assert!(tf.decode(-1.0) >= 0.0);
             assert!(tf.encode(-1.0) >= 0.0);
         }

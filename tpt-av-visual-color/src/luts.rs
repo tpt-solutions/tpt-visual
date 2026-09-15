@@ -58,11 +58,7 @@ impl Lut3D {
             for g in 0..size {
                 for r in 0..size {
                     let n = (size - 1) as f32;
-                    data.push([
-                        r as f32 / n,
-                        g as f32 / n,
-                        b as f32 / n,
-                    ]);
+                    data.push([r as f32 / n, g as f32 / n, b as f32 / n]);
                 }
             }
         }
@@ -90,7 +86,11 @@ impl Lut3D {
             self.data[x + y * self.size + z * self.size * self.size]
         };
         let lerp3 = |a: [f32; 3], b: [f32; 3], t: f32| -> [f32; 3] {
-            [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]
+            [
+                a[0] + (b[0] - a[0]) * t,
+                a[1] + (b[1] - a[1]) * t,
+                a[2] + (b[2] - a[2]) * t,
+            ]
         };
 
         let c00 = lerp3(at(i[0], i[1], i[2]), at(i[0] + 1, i[1], i[2]), f[0]);
@@ -168,18 +168,22 @@ pub fn parse_cube(text: &str) -> Result<Cube> {
             .strip_prefix("LUT_3D_SIZE")
             .or_else(|| line.strip_prefix("LUT_3D_INPUT_SIZE"))
         {
-            lut3d_size = Some(rest.trim().parse().map_err(|_| {
-                cube_error(line_no, "invalid LUT_3D_SIZE value")
-            })?);
+            lut3d_size = Some(
+                rest.trim()
+                    .parse()
+                    .map_err(|_| cube_error(line_no, "invalid LUT_3D_SIZE value"))?,
+            );
             continue;
         }
         if let Some(rest) = line
             .strip_prefix("LUT_1D_SIZE")
             .or_else(|| line.strip_prefix("LUT_1D_INPUT_SIZE"))
         {
-            lut1d_size = Some(rest.trim().parse().map_err(|_| {
-                cube_error(line_no, "invalid LUT_1D_SIZE value")
-            })?);
+            lut1d_size = Some(
+                rest.trim()
+                    .parse()
+                    .map_err(|_| cube_error(line_no, "invalid LUT_1D_SIZE value"))?,
+            );
             continue;
         }
         if line.starts_with("DOMAIN_") || line.starts_with("ORIGIN") || line.starts_with("LUT_ID") {
@@ -213,15 +217,22 @@ pub fn parse_cube(text: &str) -> Result<Cube> {
         if entries.len() == size {
             // Single table replicated per channel.
             let table: Vec<f32> = entries.iter().map(|e| e[0]).collect();
-            return Ok(Cube::Lut1D(Lut1D::new(table.clone(), table.clone(), table)?));
+            return Ok(Cube::Lut1D(Lut1D::new(
+                table.clone(),
+                table.clone(),
+                table,
+            )?));
         }
         if entries.len() == expect3 {
             // Three-column 1D layout: red points first, then green, then
             // blue.
-            let take = |start: usize| -> Vec<f32> {
-                (0..size).map(|i| entries[start + i][0]).collect()
-            };
-            return Ok(Cube::Lut1D(Lut1D::new(take(0), take(size), take(size * 2))?));
+            let take =
+                |start: usize| -> Vec<f32> { (0..size).map(|i| entries[start + i][0]).collect() };
+            return Ok(Cube::Lut1D(Lut1D::new(
+                take(0),
+                take(size),
+                take(size * 2),
+            )?));
         }
         return Err(VisualError::InvalidOperation(format!(
             "1D LUT of size {size} needs {size} or {expect3} entries, got {}",
@@ -254,7 +265,12 @@ mod tests {
     #[test]
     fn identity_lut_is_identity() {
         let lut = Lut3D::identity(17).unwrap();
-        for rgb in [[0.0, 0.0, 0.0], [0.25, 0.5, 0.75], [1.0, 1.0, 1.0], [0.1, 0.9, 0.42]] {
+        for rgb in [
+            [0.0, 0.0, 0.0],
+            [0.25, 0.5, 0.75],
+            [1.0, 1.0, 1.0],
+            [0.1, 0.9, 0.42],
+        ] {
             let out = lut.sample(rgb);
             for (o, i) in out.iter().zip(rgb) {
                 assert!(close(*o, i), "{rgb:?} -> {out:?}");

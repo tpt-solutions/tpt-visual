@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "tpt-av-visual",
     "tpt-av-visual-utils",
     "tpt-av-visual-timeline",
     "tpt-av-visual-compositor",
@@ -17,6 +18,7 @@ rust-version = "1.75"
 
 [workspace.dependencies]
 # Internal crates.
+tpt-av-visual = { path = "tpt-av-visual", version = "0.1.0" }
 tpt-av-visual-utils = { path = "tpt-av-visual-utils", version = "0.1.0" }
 tpt-av-visual-timeline = { path = "tpt-av-visual-timeline", version = "0.1.0" }
 tpt-av-visual-compositor = { path = "tpt-av-visual-compositor", version = "0.1.0" }

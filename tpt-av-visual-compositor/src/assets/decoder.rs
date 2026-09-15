@@ -8,7 +8,9 @@
 
 use crate::gpu::device::Result;
 use std::path::PathBuf;
-use tpt_av_visual_utils::{FrameRate, PixelFormat, Resolution, VideoFrame};
+#[cfg(feature = "kinetix")]
+use tpt_av_visual_utils::PixelFormat;
+use tpt_av_visual_utils::{FrameRate, Resolution, VideoFrame};
 
 /// Decodes indexed frames of a single asset.
 pub trait FrameDecoder: Send {
@@ -74,6 +76,51 @@ impl FrameDecoder for ProceduralDecoder {
     }
 }
 
+/// A single solid color for every frame. Ideal for compositing tests and
+/// color-accurate base layers.
+pub struct SolidDecoder {
+    color: [u8; 4],
+    frame_rate: FrameRate,
+    resolution: Resolution,
+}
+
+impl SolidDecoder {
+    /// A solid-color source at the given rate/resolution.
+    #[must_use]
+    pub fn new(color: [u8; 4], frame_rate: FrameRate, resolution: Resolution) -> Self {
+        SolidDecoder {
+            color,
+            frame_rate,
+            resolution,
+        }
+    }
+
+    /// Renders one frame of the solid color.
+    #[must_use]
+    pub fn render(&self, index: u64) -> VideoFrame {
+        let count = (self.resolution.width * self.resolution.height) as usize;
+        let mut data = Vec::with_capacity(count * 4);
+        for _ in 0..count {
+            data.extend_from_slice(&self.color);
+        }
+        VideoFrame::from_rgba(self.resolution.width, self.resolution.height, data, index)
+    }
+}
+
+impl FrameDecoder for SolidDecoder {
+    fn decode_frame(&mut self, index: u64) -> Result<VideoFrame> {
+        Ok(self.render(index))
+    }
+
+    fn frame_rate(&self) -> FrameRate {
+        self.frame_rate
+    }
+
+    fn resolution(&self) -> Resolution {
+        self.resolution
+    }
+}
+
 /// Numbered image files (e.g. `frame_0001.png`) as a video source.
 pub struct ImageSequenceDecoder {
     dir: PathBuf,
@@ -124,10 +171,9 @@ impl FrameDecoder for ImageSequenceDecoder {
         }
         let path = self.path_for(index);
         let img = image::open(&path)
-            .map_err(|e| crate::gpu::device::CompositorError::Decode(format!(
-                "{}: {e}",
-                path.display()
-            )))?
+            .map_err(|e| {
+                crate::gpu::device::CompositorError::Decode(format!("{}: {e}", path.display()))
+            })?
             .to_rgba8();
         let (w, h) = img.dimensions();
         Ok(VideoFrame::from_rgba(w, h, img.into_raw(), index))
@@ -157,11 +203,7 @@ pub struct KinetixDecoder {
 impl KinetixDecoder {
     /// Loads media bytes (the full file). Decoders are opened lazily so a
     /// cache can be constructed on any thread.
-    pub fn from_bytes(
-        data: Vec<u8>,
-        frame_rate: FrameRate,
-        resolution: Resolution,
-    ) -> Self {
+    pub fn from_bytes(data: Vec<u8>, frame_rate: FrameRate, resolution: Resolution) -> Self {
         KinetixDecoder {
             data,
             frame_rate,

@@ -85,7 +85,8 @@ impl GpuTexture {
             format: wgpu::TextureFormat::Rgba8Unorm,
             usage: wgpu::TextureUsages::TEXTURE_BINDING
                 | wgpu::TextureUsages::RENDER_ATTACHMENT
-                | wgpu::TextureUsages::COPY_DST,
+                | wgpu::TextureUsages::COPY_DST
+                | wgpu::TextureUsages::COPY_SRC,
             view_formats: &[],
         });
         queue.write_texture(
@@ -172,7 +173,11 @@ pub struct YuvPlanes {
     _textures: [wgpu::Texture; 3],
 }
 
-fn upload_planes(device: &wgpu::Device, queue: &wgpu::Queue, frame: &VideoFrame) -> Result<YuvPlanes> {
+fn upload_planes(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    frame: &VideoFrame,
+) -> Result<YuvPlanes> {
     let make_plane = |w: u32, h: u32, data: &[u8], label: &str| {
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some(label),
@@ -205,9 +210,15 @@ fn upload_planes(device: &wgpu::Device, queue: &wgpu::Queue, frame: &VideoFrame)
         texture
     };
 
-    let y_plane = frame.plane(0).map_err(|e| CompositorError::Decode(e.to_string()))?;
-    let u_plane = frame.plane(1).map_err(|e| CompositorError::Decode(e.to_string()))?;
-    let v_plane = frame.plane(2).map_err(|e| CompositorError::Decode(e.to_string()))?;
+    let y_plane = frame
+        .plane(0)
+        .map_err(|e| CompositorError::Decode(e.to_string()))?;
+    let u_plane = frame
+        .plane(1)
+        .map_err(|e| CompositorError::Decode(e.to_string()))?;
+    let v_plane = frame
+        .plane(2)
+        .map_err(|e| CompositorError::Decode(e.to_string()))?;
 
     let chroma_shift = match frame.pixel_format {
         PixelFormat::Yuv420p => (1, 1),

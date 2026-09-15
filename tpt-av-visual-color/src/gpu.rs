@@ -375,16 +375,14 @@ pub fn headless_device() -> Option<(wgpu::Device, wgpu::Queue)> {
         compatible_surface: None,
         force_fallback_adapter: false,
     }))?;
-    let (device, queue) = pollster::block_on(
-        adapter.request_device(
-            &wgpu::DeviceDescriptor {
-                label: Some("tpt-visual headless device"),
-                required_features: wgpu::Features::empty(),
-                required_limits: wgpu::Limits::default(),
-            },
-            None,
-        ),
-    )
+    let (device, queue) = pollster::block_on(adapter.request_device(
+        &wgpu::DeviceDescriptor {
+            label: Some("tpt-visual headless device"),
+            required_features: wgpu::Features::empty(),
+            required_limits: wgpu::Limits::default(),
+        },
+        None,
+    ))
     .ok()?;
     Some((device, queue))
 }

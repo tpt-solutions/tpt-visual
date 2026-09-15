@@ -1,8 +1,8 @@
 //! GPU integration: run an effect chain end-to-end and compare against the
 //! CPU reference. Skips when no GPU adapter exists.
 
-use tpt_av_visual_effects as effects;
 use effects::{Effect, EffectParams, EffectPassDesc, EffectRenderer};
+use tpt_av_visual_effects as effects;
 
 /// Uploads an RGBA8 texture, runs passes ping-pong, downloads the result.
 fn run_chain(
@@ -16,7 +16,11 @@ fn run_chain(
     let make_tex = |label, usage| {
         device.create_texture(&wgpu::TextureDescriptor {
             label: Some(label),
-            size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+            size: wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
@@ -25,10 +29,7 @@ fn run_chain(
             view_formats: &[],
         })
     };
-    let src_tex = make_tex(
-        "src",
-        wgpu::TextureUsages::COPY_DST,
-    );
+    let src_tex = make_tex("src", wgpu::TextureUsages::COPY_DST);
     queue.write_texture(
         src_tex.as_image_copy(),
         src,
@@ -37,7 +38,11 @@ fn run_chain(
             bytes_per_row: Some(width * 4),
             rows_per_image: None,
         },
-        wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+        wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        },
     );
     let scratch_a = make_tex("scratch-a", wgpu::TextureUsages::RENDER_ATTACHMENT);
     let scratch_b = make_tex("scratch-b", wgpu::TextureUsages::RENDER_ATTACHMENT);
@@ -47,16 +52,24 @@ fn run_chain(
     );
 
     let view = |t: &wgpu::Texture| t.create_view(&wgpu::TextureViewDescriptor::default());
-    let views = [view(&src_tex), view(&scratch_a), view(&scratch_b), view(&out_tex)];
+    let views = [
+        view(&src_tex),
+        view(&scratch_a),
+        view(&scratch_b),
+        view(&out_tex),
+    ];
 
     let mut renderer = EffectRenderer::new(device.clone(), queue.clone());
-    let mut encoder =
-        device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+    let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
 
     // views[0] = source; each pass reads the previous result.
     let mut cursor = 0_usize;
     for (i, pass) in passes.iter().enumerate() {
-        let target_idx = if i + 1 == passes.len() { 3 } else { 1 + (i % 2) };
+        let target_idx = if i + 1 == passes.len() {
+            3
+        } else {
+            1 + (i % 2)
+        };
         renderer.render_pass(
             &mut encoder,
             pass,
@@ -76,8 +89,7 @@ fn run_chain(
         usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
         mapped_at_creation: false,
     });
-    let mut encoder =
-        device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+    let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
     encoder.copy_texture_to_buffer(
         out_tex.as_image_copy(),
         wgpu::ImageCopyBuffer {
@@ -88,7 +100,11 @@ fn run_chain(
                 rows_per_image: None,
             },
         },
-        wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+        wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        },
     );
     queue.submit(Some(encoder.finish()));
 
@@ -134,7 +150,9 @@ fn vignette_gpu_matches_cpu() {
 
     if std::env::var("EFFECTS_DEBUG").is_ok() {
         for row in [0, 8, 16, 24] {
-            let vals: Vec<u8> = (0..32).map(|col| gpu[((row * 32 + col) * 4) as usize]).collect();
+            let vals: Vec<u8> = (0..32)
+                .map(|col| gpu[((row * 32 + col) * 4) as usize])
+                .collect();
             eprintln!("row {row}: {:?}", &vals[..8]);
         }
     }
@@ -147,13 +165,15 @@ fn vignette_gpu_matches_cpu() {
     let center = ((height / 2 * width + width / 2) * 4) as usize;
     for ch in 0..3 {
         let d = i32::from(gpu[center + ch]).abs_diff(i32::from(cpu[center + ch]));
-        assert!(d <= 2, "center channel {ch}: gpu {} cpu {}", gpu[center + ch], cpu[center + ch]);
+        assert!(
+            d <= 2,
+            "center channel {ch}: gpu {} cpu {}",
+            gpu[center + ch],
+            cpu[center + ch]
+        );
     }
     // r and g are 0 in the corner of this gradient; use b (128).
-    assert!(
-        gpu[2] < src[2],
-        "GPU vignette must darken the corner"
-    );
+    assert!(gpu[2] < src[2], "GPU vignette must darken the corner");
 }
 
 #[test]
@@ -176,7 +196,14 @@ fn color_correct_gpu_matches_cpu() {
     cc.brightness = 0.05;
     cc.contrast = 0.2;
     cc.saturation = 1.4;
-    let gpu = run_chain(&device, &queue, &cc.passes(width, height), &src, width, height);
+    let gpu = run_chain(
+        &device,
+        &queue,
+        &cc.passes(width, height),
+        &src,
+        width,
+        height,
+    );
 
     let mut cpu = src.clone();
     cc.apply_cpu(&mut cpu, width, height);
@@ -208,9 +235,19 @@ fn identity_pass_is_transparent() {
         v[3] = 255;
     }
     let cc = effects::ColorCorrect::neutral();
-    let gpu = run_chain(&device, &queue, &cc.passes(width, height), &src, width, height);
+    let gpu = run_chain(
+        &device,
+        &queue,
+        &cc.passes(width, height),
+        &src,
+        width,
+        height,
+    );
     for px in 0..(width * height * 4) as usize {
-        assert_eq!(gpu[px], src[px], "identity pass must be transparent at px {px}");
+        assert_eq!(
+            gpu[px], src[px],
+            "identity pass must be transparent at px {px}"
+        );
     }
 }
 

@@ -37,19 +37,17 @@ pub type ParamBag = BTreeMap<String, f32>;
 /// Returns [`EffectError::UnknownEffect`] for unregistered names.
 pub fn build_effect(name: &str, params: &ParamBag) -> Result<Box<dyn Effect>> {
     match name {
-        "gaussian_blur" | "box_blur" | "motion_blur" => {
-            Ok(effects::blur::from_params(
-                match name {
-                    "gaussian_blur" => "gaussian_blur",
-                    "box_blur" => "box_blur",
-                    _ => "motion_blur",
-                },
-                params,
-            ))
-        }
-        "sharpen" => Ok(Box::new(Sharpen::new(
-            effects::param(params, "amount", 1.0),
-        ))),
+        "gaussian_blur" | "box_blur" | "motion_blur" => Ok(effects::blur::from_params(
+            match name {
+                "gaussian_blur" => "gaussian_blur",
+                "box_blur" => "box_blur",
+                _ => "motion_blur",
+            },
+            params,
+        )),
+        "sharpen" => Ok(Box::new(Sharpen::new(effects::param(
+            params, "amount", 1.0,
+        )))),
         "color_correct" => Ok(effects::color_correct::from_params(params)),
         "levels" => Ok(effects::levels::from_params(params)),
         "curves" => Ok(effects::curves::from_params(params)),
@@ -96,16 +94,14 @@ pub fn headless_gpu() -> Option<(Arc<wgpu::Device>, Arc<wgpu::Queue>)> {
         compatible_surface: None,
         force_fallback_adapter: false,
     }))?;
-    let (device, queue) = pollster::block_on(
-        adapter.request_device(
-            &wgpu::DeviceDescriptor {
-                label: Some("tpt-visual effects headless device"),
-                required_features: wgpu::Features::empty(),
-                required_limits: wgpu::Limits::default(),
-            },
-            None,
-        ),
-    )
+    let (device, queue) = pollster::block_on(adapter.request_device(
+        &wgpu::DeviceDescriptor {
+            label: Some("tpt-visual effects headless device"),
+            required_features: wgpu::Features::empty(),
+            required_limits: wgpu::Limits::default(),
+        },
+        None,
+    ))
     .ok()?;
     Some((Arc::new(device), Arc::new(queue)))
 }

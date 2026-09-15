@@ -1,8 +1,8 @@
 //! The compositing graph: nodes, edges, topological execution.
 
 use crate::gpu::device::{CompositorError, Result};
-use crate::node::{CompositorNode, NodeFrame, NodeId};
 use crate::gpu::pipeline::NodeParams;
+use crate::node::{CompositorNode, NodeFrame, NodeId};
 use std::sync::Arc;
 
 /// A directed graph of compositing nodes.
@@ -52,9 +52,7 @@ impl CompositorGraph {
             )));
         }
         let slot_ref = self.slots[to].get_mut(slot).ok_or_else(|| {
-            CompositorError::InvalidOperation(format!(
-                "node {to} has no input slot {slot}"
-            ))
+            CompositorError::InvalidOperation(format!("node {to} has no input slot {slot}"))
         })?;
         *slot_ref = Some(from);
         Ok(())
@@ -147,9 +145,6 @@ impl CompositorGraph {
             }
 
             if node == final_node {
-                if std::env::var("TPT_DEBUG").is_ok() {
-                    eprintln!("node {node} -> final target");
-                }
                 self.nodes[node].render(ctx, final_target, params, frame)?;
                 continue;
             }
@@ -163,9 +158,6 @@ impl CompositorGraph {
                 ctx.resolution.height,
                 wgpu::TextureUsages::RENDER_ATTACHMENT,
             );
-            if std::env::var("TPT_DEBUG").is_ok() {
-                eprintln!("node {node} -> pooled usage {:?}", texture.usage());
-            }
             let view = Arc::new(texture.create_view(&wgpu::TextureViewDescriptor::default()));
             self.nodes[node].render(ctx, &view, params, frame)?;
             views[node] = Some(view);

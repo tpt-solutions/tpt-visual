@@ -19,7 +19,7 @@ use std::sync::Arc;
 #[repr(C)]
 #[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct NodeParams {
-    /// Column-major 3x3 (padded) transform: source UV → target UV.
+    /// Column-major 3x3 (padded) transform: target UV → source UV.
     pub matrix_cols: [[f32; 4]; 3],
     /// First parameter quad (shader-specific).
     pub p0: [f32; 4],
@@ -65,16 +65,69 @@ impl NodeParams {
     }
 }
 
+/// Bind group entries shared by every node pipeline.
+fn node_bind_entries() -> Vec<wgpu::BindGroupLayoutEntry> {
+    vec![
+        wgpu::BindGroupLayoutEntry {
+            binding: 0,
+            visibility: wgpu::ShaderStages::FRAGMENT,
+            ty: wgpu::BindingType::Texture {
+                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                view_dimension: wgpu::TextureViewDimension::D2,
+                multisampled: false,
+            },
+            count: None,
+        },
+        wgpu::BindGroupLayoutEntry {
+            binding: 1,
+            visibility: wgpu::ShaderStages::FRAGMENT,
+            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+            count: None,
+        },
+        wgpu::BindGroupLayoutEntry {
+            binding: 2,
+            visibility: wgpu::ShaderStages::FRAGMENT,
+            ty: wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Uniform,
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+            count: None,
+        },
+        wgpu::BindGroupLayoutEntry {
+            binding: 3,
+            visibility: wgpu::ShaderStages::FRAGMENT,
+            ty: wgpu::BindingType::Texture {
+                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                view_dimension: wgpu::TextureViewDimension::D2,
+                multisampled: false,
+            },
+            count: None,
+        },
+    ]
+}
+
 /// Cache of `(shader name, target format)` → pipeline.
+///
+/// All node pipelines share ONE bind group layout object (created in
+/// [`PipelineCache::new`]). Recreating identical layouts per pipeline trips
+/// a layout-interning bug in wgpu 0.19 on some drivers ("assigned bind
+/// group layout not found" internal errors, draws silently skipped).
 pub struct PipelineCache {
+    node_bind_layout: wgpu::BindGroupLayout,
     pipelines: HashMap<(&'static str, wgpu::TextureFormat), Arc<wgpu::RenderPipeline>>,
 }
 
 impl PipelineCache {
-    /// An empty cache.
+    /// Creates the cache with the shared node bind group layout.
     #[must_use]
-    pub fn new() -> Self {
+    pub fn new(device: &wgpu::Device) -> Self {
+        let node_bind_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("tpt-visual: node bind layout"),
+            entries: &node_bind_entries(),
+        });
         PipelineCache {
+            node_bind_layout,
             pipelines: HashMap::new(),
         }
     }
@@ -90,50 +143,9 @@ impl PipelineCache {
     ) -> Result<Arc<wgpu::RenderPipeline>> {
         if !self.pipelines.contains_key(&(name, format)) {
             let shader = shaders.module(device, name);
-            let bind_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("tpt-visual: node bind layout"),
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            multisampled: false,
-                        },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 2,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 3,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            multisampled: false,
-                        },
-                        count: None,
-                    },
-                ],
-            });
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("tpt-visual: node pipeline layout"),
-                bind_group_layouts: &[&bind_layout],
+                bind_group_layouts: &[&self.node_bind_layout],
                 push_constant_ranges: &[],
             });
             let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -160,12 +172,11 @@ impl PipelineCache {
             });
             self.pipelines.insert((name, format), Arc::new(pipeline));
         }
-        self.pipelines
-            .get(&(name, format))
-            .cloned()
-            .ok_or_else(|| crate::gpu::device::CompositorError::Gpu(format!(
+        self.pipelines.get(&(name, format)).cloned().ok_or_else(|| {
+            crate::gpu::device::CompositorError::Gpu(format!(
                 "pipeline {name} missing after insert"
-            )))
+            ))
+        })
     }
 
     /// Builds the YUV→RGBA conversion pipeline (different bind layout).
@@ -174,7 +185,10 @@ impl PipelineCache {
         device: &wgpu::Device,
         shaders: &mut crate::gpu::shader::ShaderRegistry,
     ) -> Result<Arc<wgpu::RenderPipeline>> {
-        if let Some(p) = self.pipelines.get(&("yuv_to_rgb", wgpu::TextureFormat::Rgba8Unorm)) {
+        if let Some(p) = self
+            .pipelines
+            .get(&("yuv_to_rgb", wgpu::TextureFormat::Rgba8Unorm))
+        {
             return Ok(p.clone());
         }
         let shader = shaders.module(device, "yuv_to_rgb");
@@ -220,8 +234,10 @@ impl PipelineCache {
             multiview: None,
         });
         let pipeline = Arc::new(pipeline);
-        self.pipelines
-            .insert(("yuv_to_rgb", wgpu::TextureFormat::Rgba8Unorm), pipeline.clone());
+        self.pipelines.insert(
+            ("yuv_to_rgb", wgpu::TextureFormat::Rgba8Unorm),
+            pipeline.clone(),
+        );
         Ok(pipeline)
     }
 }
@@ -236,11 +252,5 @@ fn plane_entry(binding: u32) -> wgpu::BindGroupLayoutEntry {
             multisampled: false,
         },
         count: None,
-    }
-}
-
-impl Default for PipelineCache {
-    fn default() -> Self {
-        Self::new()
     }
 }

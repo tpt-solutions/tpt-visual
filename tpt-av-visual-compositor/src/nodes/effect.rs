@@ -15,7 +15,10 @@ pub struct EffectNode {
 impl EffectNode {
     /// Wraps a chain; an empty chain should be skipped by the renderer.
     pub fn new(effects: Vec<Box<dyn Effect>>) -> Self {
-        EffectNode { effects, input: None }
+        EffectNode {
+            effects,
+            input: None,
+        }
     }
 }
 
@@ -52,16 +55,10 @@ impl CompositorNode for EffectNode {
             for desc in chain {
                 pass_index += 1;
                 let last = pass_index == total_passes;
-                let source: &wgpu::TextureView =
-                    cursor_view.as_ref().unwrap_or(&input);
+                let source: &wgpu::TextureView = cursor_view.as_ref().unwrap_or(&input);
                 if last {
-                    ctx.effects.render_pass(
-                        ctx.encoder,
-                        desc,
-                        source,
-                        output,
-                        ctx.target_format,
-                    );
+                    ctx.effects
+                        .render_pass(ctx.encoder, desc, source, output, ctx.target_format);
                 } else {
                     let texture = ctx.pool.acquire(
                         ctx.device,
@@ -69,15 +66,9 @@ impl CompositorNode for EffectNode {
                         height,
                         wgpu::TextureUsages::RENDER_ATTACHMENT,
                     );
-                    let view =
-                        texture.create_view(&wgpu::TextureViewDescriptor::default());
-                    ctx.effects.render_pass(
-                        ctx.encoder,
-                        desc,
-                        source,
-                        &view,
-                        ctx.target_format,
-                    );
+                    let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+                    ctx.effects
+                        .render_pass(ctx.encoder, desc, source, &view, ctx.target_format);
                     cursor_view = Some(view);
                     scratch.push(texture);
                 }

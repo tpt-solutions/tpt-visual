@@ -31,12 +31,6 @@ pub enum TransitionCurve {
     Bezier(f32, f32, f32, f32),
 }
 
-impl Default for TransitionCurve {
-    fn default() -> Self {
-        TransitionCurve::Smooth
-    }
-}
-
 impl TransitionCurve {
     /// Eases a raw progress value.
     #[must_use]
@@ -129,11 +123,13 @@ impl CompositorNode for TransitionNode {
                 "transition node requires two inputs".into(),
             ));
         };
-        let pipeline = ctx
-            .pipelines
-            .get(ctx.device, ctx.shaders, "transition", ctx.target_format)?;
-        let sampler = ctx.device.create_sampler(&wgpu::SamplerDescriptor::default());
-        let mut params = base.clone();
+        let pipeline =
+            ctx.pipelines
+                .get(ctx.device, ctx.shaders, "transition", ctx.target_format)?;
+        let sampler = ctx
+            .device
+            .create_sampler(&wgpu::SamplerDescriptor::default());
+        let mut params = *base;
         params.p0 = [self.wipe_softness, 0.0, 0.0, 0.0];
         params.mode = match self.kind {
             TransitionKind::Crossfade => 0,

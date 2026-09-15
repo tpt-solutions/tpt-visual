@@ -21,6 +21,10 @@
 //! matrices are checked against published constants and the official ACES
 //! AP1↔XYZ transforms. See the `tests/` directory.
 
+// Spec constants (ACES/BT.2100/ST 2084 anchors) intentionally carry more
+// digits than f32 can hold so the published values stay greppable.
+#![allow(clippy::excessive_precision)]
+
 pub mod aces;
 pub mod color_space;
 pub mod gamut;
@@ -118,7 +122,6 @@ impl ColorPipeline {
 
     /// The composed linear-light gamut conversion (input space → output
     /// space).
-    #[must_use]
     pub fn gamut_converter(&self) -> Result<GamutConverter> {
         GamutConverter::new(self.input_space, self.output_space)
     }
@@ -169,7 +172,7 @@ impl ColorPipeline {
     ///
     /// Convenience wrapper that compiles the pipeline for this call; hosts
     /// rendering many frames should hold a
-    /// [`GpuColorPipeline`](gpu::GpuColorPipeline) instead.
+    /// [`GpuColorPipeline`] instead.
     pub fn apply(
         &self,
         device: &wgpu::Device,
@@ -221,7 +224,10 @@ mod tests {
         )
         .with_tone_mapper(ToneMapper::Reinhard);
         let out = p.apply_pixel([0.5, 0.5, 0.5]);
-        assert!(close(out[0], out[1], 1e-5) && close(out[1], out[2], 1e-5), "{out:?}");
+        assert!(
+            close(out[0], out[1], 1e-5) && close(out[1], out[2], 1e-5),
+            "{out:?}"
+        );
     }
 
     #[test]

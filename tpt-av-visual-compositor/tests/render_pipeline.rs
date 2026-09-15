@@ -1,13 +1,19 @@
 //! End-to-end render pipeline tests (GPU required; skipped without one).
 
+use std::sync::Arc;
+
+use compositor::{ProceduralDecoder, TimelineRenderer};
 use tpt_av_visual_compositor as compositor;
-use compositor::{FrameDecoder, ProceduralDecoder, TimelineRenderer};
 use tpt_av_visual_timeline as timeline;
 use tpt_av_visual_timeline::{AssetId, Clip, Session};
 use tpt_av_visual_utils::{FrameRate, PixelFormat, Resolution, VideoFrame};
 
 fn test_session() -> (Session, timeline::VideoAsset) {
-    let mut session = Session::new("render test", FrameRate::film(), Resolution::new(64, 64).unwrap());
+    let mut session = Session::new(
+        "render test",
+        FrameRate::film(),
+        Resolution::new(64, 64).unwrap(),
+    );
     let asset = session.register_asset(timeline::VideoAsset::new(
         AssetId(0),
         "procedural",
@@ -49,7 +55,11 @@ fn read_back(
                 rows_per_image: None,
             },
         },
-        wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+        wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        },
     );
     queue.submit(Some(encoder.finish()));
     let (tx, rx) = std::sync::mpsc::channel::<Result<(), wgpu::BufferAsyncError>>();
@@ -68,14 +78,15 @@ fn read_back(
 
 #[test]
 fn full_pipeline_renders_changing_frames() {
-    let Some(gpu) = compositor::GpuContext::headless() else {
-        eprintln!("skipping: no GPU adapter available");
-        return;
-    };
     let (session, asset) = test_session();
-    let mut renderer = TimelineRenderer::headless(session)
-        .expect("renderer")
-        .expect("GPU available");
+    let mut renderer = match TimelineRenderer::headless(session) {
+        Ok(Some(renderer)) => renderer,
+        Ok(None) => {
+            eprintln!("skipping: no GPU adapter available");
+            return;
+        }
+        Err(e) => panic!("{e}"),
+    };
 
     renderer.attach_asset(
         asset,
@@ -85,11 +96,17 @@ fn full_pipeline_renders_changing_frames() {
         )),
     );
 
-    let device = gpu.device();
-    let queue = gpu.queue();
+    // The target MUST live on the renderer's device (TimelineRenderer owns
+    // its own GpuContext).
+    let device = renderer.compositor_mut().gpu().device().clone();
+    let queue = renderer.compositor_mut().gpu().queue().clone();
     let target = device.create_texture(&wgpu::TextureDescriptor {
         label: Some("target"),
-        size: wgpu::Extent3d { width: 64, height: 64, depth_or_array_layers: 1 },
+        size: wgpu::Extent3d {
+            width: 64,
+            height: 64,
+            depth_or_array_layers: 1,
+        },
         mip_level_count: 1,
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
@@ -101,20 +118,61 @@ fn full_pipeline_renders_changing_frames() {
 
     // Frame 0.
     renderer.render_frame(&view).expect("frame 0");
-    let out0 = read_back(device, queue, &view, &target, 64, 64);
+    let out0 = read_back(&device, &queue, &view, &target, 64, 64);
     assert_eq!(renderer.playhead(), 1, "playhead advances");
 
     // Frame 1.
     renderer.render_frame(&view).expect("frame 1");
-    let out1 = read_back(device, queue, &view, &target, 64, 64);
+    let out1 = read_back(&device, &queue, &view, &target, 64, 64);
 
+    // render_frame_rgba must agree with the manual path.
+    let rgba = renderer.render_frame_rgba().expect("rgba render");
+    eprintln!(
+        "render_frame_rgba first px {:?} (len {})",
+        &rgba[..8],
+        rgba.len()
+    );
+
+    let sum: u64 = out0.iter().map(|v| u64::from(*v)).sum();
+    eprintln!(
+        "test readback: device {:p} queue {:p}",
+        Arc::as_ptr(&device),
+        Arc::as_ptr(&queue)
+    );
+    eprintln!("frame0 checksum {sum}, first px {:?}", &out0[..8]);
+
+    // Sanity: a direct clear + readback on this device must work.
+    {
+        let mut enc = device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+        let pass = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("direct clear debug"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color::BLUE),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
+        drop(pass);
+        queue.submit(Some(enc.finish()));
+        let direct = read_back(&device, &queue, &view, &target, 64, 64);
+        eprintln!("direct-clear first px {:?}", &direct[..4]);
+    }
     // The procedural pattern animates, so consecutive frames must differ.
     let differing = out0
         .iter()
         .zip(&out1)
         .filter(|(a, b)| a.abs_diff(**b) > 2)
         .count();
-    assert!(differing > 64, "frames must animate (differing pixels: {differing})");
+    assert!(
+        differing > 64,
+        "frames must animate (differing pixels: {differing})"
+    );
 
     // The canvas must be non-transparent where the clip rendered.
     let alpha = out0.iter().skip(3).step_by(4).next().copied().unwrap_or(0);
@@ -159,14 +217,15 @@ fn yuv_frames_upload_through_gpu_conversion() {
 
 #[test]
 fn prefetch_threads_shut_down_cleanly() {
-    let Some(gpu) = compositor::GpuContext::headless() else {
-        eprintln!("skipping: no GPU adapter available");
-        return;
-    };
     let (session, asset) = test_session();
-    let mut renderer = TimelineRenderer::headless(session)
-        .expect("renderer")
-        .expect("GPU available");
+    let mut renderer = match TimelineRenderer::headless(session) {
+        Ok(Some(renderer)) => renderer,
+        Ok(None) => {
+            eprintln!("skipping: no GPU adapter available");
+            return;
+        }
+        Err(e) => panic!("{e}"),
+    };
     renderer.attach_asset(
         asset,
         Box::new(ProceduralDecoder::new(
@@ -176,11 +235,15 @@ fn prefetch_threads_shut_down_cleanly() {
     );
 
     renderer.prefetch_around_playhead(8);
-    let device = gpu.device();
-    let queue = gpu.queue();
+    let device = renderer.compositor_mut().gpu().device().clone();
+    let _queue = renderer.compositor_mut().gpu().queue().clone();
     let target = device.create_texture(&wgpu::TextureDescriptor {
         label: Some("target"),
-        size: wgpu::Extent3d { width: 64, height: 64, depth_or_array_layers: 1 },
+        size: wgpu::Extent3d {
+            width: 64,
+            height: 64,
+            depth_or_array_layers: 1,
+        },
         mip_level_count: 1,
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,

@@ -1,0 +1,44 @@
+[package]
+name = "tpt-av-visual"
+description = "Facade crate for the TPT AV visual stack: one dependency for the timeline, compositor, color science, and effects"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+authors = ["TPT Solutions"]
+keywords = ["video", "gpu", "timeline", "compositor", "wgpu"]
+categories = ["multimedia::video", "rendering::engine"]
+
+[features]
+default = ["kinetix"]
+# Forwarded to the compositor: real MP4/H.264 decoding via tpt-kinetix.
+kinetix = ["tpt-av-visual-compositor/kinetix"]
+
+[dependencies]
+tpt-av-visual-utils = { workspace = true }
+tpt-av-visual-timeline = { workspace = true }
+tpt-av-visual-compositor = { workspace = true }
+tpt-av-visual-color = { workspace = true }
+tpt-av-visual-effects = { workspace = true }
+log = { workspace = true }
+thiserror = { workspace = true }
+
+[package.metadata.docs.rs]
+all-features = true
+
+[[example]]
+name = "headless_render"
+path = "../examples/headless_render.rs"
+
+[[example]]
+name = "simple_player"
+path = "../examples/simple_player.rs"
+
+[[example]]
+name = "compositor_demo"
+path = "../examples/compositor_demo.rs"
+
+[dev-dependencies]
+wgpu = { workspace = true }
+winit = { workspace = true }

@@ -1,6 +1,6 @@
 //! Sharpening / edge enhancement (unsharp mask).
 
-use crate::effect::{Effect, EffectPassDesc, EffectParams};
+use crate::effect::{Effect, EffectParams, EffectPassDesc};
 
 const SHARPEN_WGSL: &str = include_str!("../gpu_shaders/sharpen.wgsl");
 
@@ -33,7 +33,13 @@ impl Effect for Sharpen {
                 let mut blur = [0.0_f32; 4];
                 for dy in -1_i64..=1 {
                     for dx in -1_i64..=1 {
-                        let s = super::sample_clamped(&src, width, height, x as i64 + dx, y as i64 + dy);
+                        let s = super::sample_clamped(
+                            &src,
+                            width,
+                            height,
+                            x as i64 + dx,
+                            y as i64 + dy,
+                        );
                         for ch in 0..3 {
                             blur[ch] += s[ch] / 9.0;
                         }

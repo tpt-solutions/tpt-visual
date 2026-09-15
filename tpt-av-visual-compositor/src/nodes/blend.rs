@@ -35,15 +35,20 @@ impl CompositorNode for BlendNode {
         base: &NodeParams,
         _frame: u64,
     ) -> Result<()> {
-        let (Some(background), Some(foreground)) = (self.background.clone(), self.foreground.clone())
+        let (Some(background), Some(foreground)) =
+            (self.background.clone(), self.foreground.clone())
         else {
             return Err(crate::gpu::device::CompositorError::InvalidOperation(
                 "blend node requires two inputs".into(),
             ));
         };
-        let pipeline = ctx.pipelines.get(ctx.device, ctx.shaders, "blend", ctx.target_format)?;
-        let sampler = ctx.device.create_sampler(&wgpu::SamplerDescriptor::default());
-        let mut params = base.clone();
+        let pipeline = ctx
+            .pipelines
+            .get(ctx.device, ctx.shaders, "blend", ctx.target_format)?;
+        let sampler = ctx
+            .device
+            .create_sampler(&wgpu::SamplerDescriptor::default());
+        let mut params = *base;
         params.p0 = [self.opacity, 0.0, 0.0, 0.0];
         params.mode = self.mode.as_u32();
         let uniform = ctx
@@ -76,9 +81,6 @@ impl CompositorNode for BlendNode {
                 },
             ],
         });
-        if std::env::var("TPT_DEBUG").is_ok() {
-            eprintln!("blend pass begins");
-        }
         let mut pass = ctx.encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("tpt-visual: blend pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {

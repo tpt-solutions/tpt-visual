@@ -1,10 +1,14 @@
 //! CPU reference behavior tests for the built-in effects.
 
-use tpt_av_visual_effects as effects;
 use effects::{Effect, ParamBag};
+use tpt_av_visual_effects as effects;
 
 fn solid(width: u32, height: u32, rgba: [u8; 4]) -> (Vec<u8>, u32, u32) {
-    (vec![rgba[0], rgba[1], rgba[2], rgba[3]].repeat((width * height) as usize), width, height)
+    (
+        [rgba[0], rgba[1], rgba[2], rgba[3]].repeat((width * height) as usize),
+        width,
+        height,
+    )
 }
 
 #[test]
@@ -13,7 +17,9 @@ fn blur_preserves_flat_fields_and_energy() {
     let (mut buf, w, h) = solid(8, 8, [100, 150, 200, 255]);
     let blur = effects::GaussianBlur::new(2.0);
     blur.apply_cpu(&mut buf, w, h);
-    assert!(buf.chunks_exact(4).all(|px| px[0] == 100 && px[1] == 150 && px[2] == 200));
+    assert!(buf
+        .chunks_exact(4)
+        .all(|px| px[0] == 100 && px[1] == 150 && px[2] == 200));
 
     // A step edge is smeared: the boundary pixel moves toward the mean.
     let mut edge = vec![0_u8; 8 * 4 * 4];
@@ -62,7 +68,7 @@ fn motion_blur_smears_horizontally() {
 
 #[test]
 fn sharpen_increases_local_contrast() {
-    let mut buf = vec![0_u8; 4 * 1 * 4];
+    let mut buf = vec![0_u8; 4 * 4];
     for x in 0..4 {
         let v = if x < 2 { 60_u8 } else { 200 };
         buf[x * 4] = v;
@@ -71,10 +77,13 @@ fn sharpen_increases_local_contrast() {
         buf[x * 4 + 3] = 255;
     }
     effects::Sharpen::new(1.0).apply_cpu(&mut buf, 4, 1);
-    let dark_edge = buf[1 * 4];
+    let dark_edge = buf[4];
     let bright_edge = buf[2 * 4];
     assert!(dark_edge < 60, "dark side pushed darker: {dark_edge}");
-    assert!(bright_edge > 200, "bright side pushed brighter: {bright_edge}");
+    assert!(
+        bright_edge > 200,
+        "bright side pushed brighter: {bright_edge}"
+    );
 }
 
 #[test]
@@ -84,7 +93,10 @@ fn color_correct_saturation_zero_greys() {
     cc.saturation = 0.0;
     cc.apply_cpu(&mut buf, w, h);
     for px in buf.chunks_exact(4) {
-        assert!(px[0].abs_diff(px[1]) <= 1 && px[1].abs_diff(px[2]) <= 1, "{px:?}");
+        assert!(
+            px[0].abs_diff(px[1]) <= 1 && px[1].abs_diff(px[2]) <= 1,
+            "{px:?}"
+        );
     }
 }
 
@@ -95,7 +107,11 @@ fn color_correct_hue_rotates_red_to_green() {
     cc.hue_degrees = 120.0;
     cc.apply_cpu(&mut buf, w, h);
     // Pure red rotated 120° in HSV lands on pure green.
-    assert!(buf[1] > 200 && buf[0] < 60 && buf[2] < 60, "{:?}", &buf[..4]);
+    assert!(
+        buf[1] > 200 && buf[0] < 60 && buf[2] < 60,
+        "{:?}",
+        &buf[..4]
+    );
 }
 
 #[test]
@@ -119,9 +135,13 @@ fn tone_curve_bakes_and_evaluates() {
     assert!((curve.eval(0.25) - 0.125).abs() < 1e-6);
     assert!((curve.eval(0.5) - 0.25).abs() < 1e-6);
     let (mut buf, w, h) = solid(2, 2, [128, 128, 128, 255]);
-    let mut effect = effects::ToneCurve::rgb(vec![(0.0, 0.0), (1.0, 0.5)]);
+    let effect = effects::ToneCurve::rgb(vec![(0.0, 0.0), (1.0, 0.5)]);
     effect.apply_cpu(&mut buf, w, h);
-    assert!(buf[0] < 128, "half-contrast curve darkens mid grey: {}", buf[0]);
+    assert!(
+        buf[0] < 128,
+        "half-contrast curve darkens mid grey: {}",
+        buf[0]
+    );
 }
 
 #[test]
@@ -169,7 +189,10 @@ fn noise_reduction_shrinks_grain_variance_keeps_edges() {
     let max = buf.chunks_exact(4).map(|px| px[0]).max().unwrap();
     // Original spread is 20; checkerboard parity keeps some structure, so
     // assert a solid reduction rather than full smoothing.
-    assert!(i16::from(max) - i16::from(min) < 16, "grain variance shrinks: {min}..{max}");
+    assert!(
+        i16::from(max) - i16::from(min) < 16,
+        "grain variance shrinks: {min}..{max}"
+    );
 
     // Bilateral weight keeps hard edges: a black/white boundary stays.
     let mut edge = vec![0_u8; 8 * 8 * 4];
@@ -187,7 +210,10 @@ fn noise_reduction_shrinks_grain_variance_keeps_edges() {
     let left_of_edge = edge[(4 * 8 + 3) * 4];
     let right_of_edge = edge[(4 * 8 + 4) * 4];
     assert!(left_of_edge < 20, "dark side stays dark: {left_of_edge}");
-    assert!(right_of_edge > 235, "bright side stays bright: {right_of_edge}");
+    assert!(
+        right_of_edge > 235,
+        "bright side stays bright: {right_of_edge}"
+    );
 }
 
 #[test]
@@ -198,7 +224,7 @@ fn vignette_darkens_corners_not_center() {
     }
     effects::Vignette::gentle().apply_cpu(&mut buf, 16, 16);
     let center = buf[(8 * 16 + 8) * 4];
-    let corner = buf[(0 * 16 + 0) * 4];
+    let corner = buf[0];
     assert_eq!(center, 200, "center untouched");
     assert!(corner < 200, "corner darkened: {corner}");
 }
@@ -208,8 +234,7 @@ fn registry_builds_every_registered_effect() {
     let mut params = ParamBag::new();
     params.insert("radius".into(), 3.0);
     for name in effects::registered_effects() {
-        let effect = effects::build_effect(name, &params)
-            .unwrap_or_else(|e| panic!("{name}: {e}"));
+        let effect = effects::build_effect(name, &params).unwrap_or_else(|e| panic!("{name}: {e}"));
         assert_eq!(effect.name(), *name);
         // Each must produce at least one GPU pass and run on the CPU.
         let passes = effect.passes(16, 16);

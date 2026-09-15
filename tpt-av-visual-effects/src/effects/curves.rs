@@ -1,7 +1,7 @@
 //! Tone curves (RGB and per-luminance), baked to 256-entry LUTs.
 
 use super::param;
-use crate::effect::{Effect, EffectPassDesc, EffectParams};
+use crate::effect::{Effect, EffectParams, EffectPassDesc};
 use std::collections::BTreeMap;
 
 const COLOR_CORRECT_WGSL: &str = include_str!("../gpu_shaders/color_correct.wgsl");
@@ -93,7 +93,7 @@ impl Effect for ToneCurve {
                 let l = 0.2126 * f32::from(px[0])
                     + 0.7152 * f32::from(px[1])
                     + 0.0722 * f32::from(px[2]);
-                let target = (luma_curve.eval(f32::from(l) / 255.0) * 255.0).round();
+                let target = (luma_curve.eval(l / 255.0) * 255.0).round();
                 let ratio = target / l.max(1.0);
                 for slot in px.iter_mut().take(3) {
                     *slot = (f32::from(*slot) * ratio).round().clamp(0.0, 255.0) as u8;

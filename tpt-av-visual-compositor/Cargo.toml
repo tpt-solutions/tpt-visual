@@ -35,18 +35,6 @@ tpt-kinetix-core = { workspace = true, optional = true }
 tpt-kinetix-demux = { workspace = true, optional = true }
 tpt-kinetix-h264 = { workspace = true, optional = true }
 
-[[example]]
-name = "headless_render"
-path = "../examples/headless_render.rs"
-
-[[example]]
-name = "simple_player"
-path = "../examples/simple_player.rs"
-
-[[example]]
-name = "compositor_demo"
-path = "../examples/compositor_demo.rs"
-
 [dev-dependencies]
 winit = { workspace = true }
 anyhow = { workspace = true }

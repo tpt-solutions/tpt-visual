@@ -209,7 +209,6 @@ impl SplitClip {
         let (track_id, original) = session
             .locate_clip(clip_id)
             .ok_or_else(|| TimelineError::NotFound(format!("clip {clip_id}")))?;
-        let track_id = track_id;
         if session.track_checked(track_id)?.locked {
             return Err(TimelineError::Invalid(format!(
                 "track {track_id} is locked"
@@ -261,7 +260,11 @@ mod tests {
     use tpt_av_visual_utils::FrameRate;
 
     fn session() -> Session {
-        let mut s = Session::new("test", FrameRate::film(), tpt_av_visual_utils::Resolution::full_hd());
+        let mut s = Session::new(
+            "test",
+            FrameRate::film(),
+            tpt_av_visual_utils::Resolution::full_hd(),
+        );
         s.add_track("Video 2");
         s
     }
@@ -299,7 +302,10 @@ mod tests {
         let mut s = session();
         let track0 = s.tracks[0].id;
         let c1 = clip(&mut s, 0, 50);
-        s.track_checked_mut(track0).unwrap().insert_clip(c1).unwrap();
+        s.track_checked_mut(track0)
+            .unwrap()
+            .insert_clip(c1)
+            .unwrap();
         let c2 = clip(&mut s, 25, 10);
         let op = InsertClip::new(track0, c2);
         assert!(op.apply(&mut s).is_err());
@@ -310,7 +316,10 @@ mod tests {
         let mut s = session();
         let track0 = s.tracks[0].id;
         let c = clip(&mut s, 10, 50);
-        s.track_checked_mut(track0).unwrap().insert_clip(c.clone()).unwrap();
+        s.track_checked_mut(track0)
+            .unwrap()
+            .insert_clip(c.clone())
+            .unwrap();
         let op = DeleteClip::perform(&mut s, track0, c.id).unwrap();
         assert!(s.tracks[0].clips.is_empty());
         op.revert(&mut s).unwrap();
@@ -326,7 +335,10 @@ mod tests {
         let t0 = s.tracks[0].id;
         let t1 = s.tracks[1].id;
         let c = clip(&mut s, 0, 50);
-        s.track_checked_mut(t0).unwrap().insert_clip(c.clone()).unwrap();
+        s.track_checked_mut(t0)
+            .unwrap()
+            .insert_clip(c.clone())
+            .unwrap();
 
         let op = MoveClip::new(c.id, t0, 0, t0, 100);
         op.apply(&mut s).unwrap();
@@ -349,7 +361,10 @@ mod tests {
         let t0 = s.tracks[0].id;
         let a = clip(&mut s, 0, 50);
         let b = clip(&mut s, 100, 50);
-        s.track_checked_mut(t0).unwrap().insert_clip(a.clone()).unwrap();
+        s.track_checked_mut(t0)
+            .unwrap()
+            .insert_clip(a.clone())
+            .unwrap();
         s.track_checked_mut(t0).unwrap().insert_clip(b).unwrap();
         let op = MoveClip::new(a.id, t0, 0, t0, 120);
         assert!(op.apply(&mut s).is_err());
@@ -362,7 +377,10 @@ mod tests {
         let mut s = session();
         let t0 = s.tracks[0].id;
         let c = clip(&mut s, 100, 60);
-        s.track_checked_mut(t0).unwrap().insert_clip(c.clone()).unwrap();
+        s.track_checked_mut(t0)
+            .unwrap()
+            .insert_clip(c.clone())
+            .unwrap();
 
         let op = SplitClip::perform(&mut s, c.id, 130).unwrap();
         assert_eq!(s.tracks[0].clips.len(), 2);

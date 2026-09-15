@@ -1,7 +1,7 @@
 //! Primary color correction: brightness, contrast, saturation, hue.
 
 use super::param;
-use crate::effect::{Effect, EffectPassDesc, EffectParams};
+use crate::effect::{Effect, EffectParams, EffectPassDesc};
 use std::collections::BTreeMap;
 
 const COLOR_CORRECT_WGSL: &str = include_str!("../gpu_shaders/color_correct.wgsl");
@@ -90,7 +90,11 @@ pub fn rotate_hue(c: [f32; 3], degrees: f32) -> [f32; 3] {
         } else {
             4.0 + (c[0] - c[1]) / delta
         } / 6.0;
-        if raw < 0.0 { raw + 1.0 } else { raw }
+        if raw < 0.0 {
+            raw + 1.0
+        } else {
+            raw
+        }
     } else {
         0.0
     };

@@ -13,8 +13,6 @@ categories = ["multimedia::video", "data-structures"]
 [dependencies]
 tpt-av-visual-utils = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 log = { workspace = true }
 thiserror = { workspace = true }
-
-[dev-dependencies]
-serde_json = { workspace = true }

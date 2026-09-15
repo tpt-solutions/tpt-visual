@@ -1,7 +1,7 @@
 //! Blur effects: gaussian, box, and motion blur.
 
 use super::param;
-use crate::effect::{Effect, EffectPassDesc, EffectParams};
+use crate::effect::{Effect, EffectParams, EffectPassDesc};
 use std::collections::BTreeMap;
 
 const BLUR_WGSL: &str = include_str!("../gpu_shaders/blur.wgsl");
@@ -17,7 +17,9 @@ impl GaussianBlur {
     /// Creates a gaussian blur with the given radius.
     #[must_use]
     pub fn new(radius: f32) -> Self {
-        GaussianBlur { radius: radius.max(0.0) }
+        GaussianBlur {
+            radius: radius.max(0.0),
+        }
     }
 }
 
@@ -67,7 +69,9 @@ impl BoxBlur {
     /// Creates a box blur with the given radius.
     #[must_use]
     pub fn new(radius: f32) -> Self {
-        BoxBlur { radius: radius.max(0.0) }
+        BoxBlur {
+            radius: radius.max(0.0),
+        }
     }
 }
 

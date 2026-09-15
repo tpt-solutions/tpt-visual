@@ -1,7 +1,7 @@
 //! Vignette: radial darkening toward the frame edges.
 
 use super::{param, smoothstep};
-use crate::effect::{Effect, EffectPassDesc, EffectParams};
+use crate::effect::{Effect, EffectParams, EffectPassDesc};
 use std::collections::BTreeMap;
 
 const VIGNETTE_WGSL: &str = include_str!("../gpu_shaders/vignette.wgsl");

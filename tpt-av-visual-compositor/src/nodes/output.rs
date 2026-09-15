@@ -37,8 +37,12 @@ impl CompositorNode for OutputNode {
                 "output node has no input".into(),
             ));
         };
-        let pipeline = ctx.pipelines.get(ctx.device, ctx.shaders, "blit", ctx.target_format)?;
-        let sampler = ctx.device.create_sampler(&wgpu::SamplerDescriptor::default());
+        let pipeline = ctx
+            .pipelines
+            .get(ctx.device, ctx.shaders, "blit", ctx.target_format)?;
+        let sampler = ctx
+            .device
+            .create_sampler(&wgpu::SamplerDescriptor::default());
         let uniform = ctx
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -71,9 +75,6 @@ impl CompositorNode for OutputNode {
                 },
             ],
         });
-        if std::env::var("TPT_DEBUG").is_ok() {
-            eprintln!("output pass begins");
-        }
         let mut pass = ctx.encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("tpt-visual: output pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {

@@ -93,9 +93,7 @@ impl Track {
     /// The last frame covered by any clip on this track (exclusive).
     #[must_use]
     pub fn end_frame(&self) -> u64 {
-        self.clips
-            .last()
-            .map_or(0, |c| c.end_frame())
+        self.clips.last().map_or(0, |c| c.end_frame())
     }
 }
 

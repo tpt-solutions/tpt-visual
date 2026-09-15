@@ -54,10 +54,7 @@ impl MaskNode {
 
     /// A chroma keying mask.
     pub fn chroma(key: ChromaKeyParams) -> Self {
-        MaskNode::Chroma {
-            key,
-            input: None,
-        }
+        MaskNode::Chroma { key, input: None }
     }
 }
 
@@ -70,7 +67,11 @@ impl CompositorNode for MaskNode {
         _frame: u64,
     ) -> Result<()> {
         let (input, mask_view, mode, key_p1, spill, matrix) = match self {
-            MaskNode::Luma { matrix, input, mask } => {
+            MaskNode::Luma {
+                matrix,
+                input,
+                mask,
+            } => {
                 let Some((i, m)) = input.clone().zip(mask.clone()) else {
                     return Err(crate::gpu::device::CompositorError::InvalidOperation(
                         "luma mask node requires input and matte".into(),
@@ -88,16 +89,25 @@ impl CompositorNode for MaskNode {
                     i,
                     None,
                     1_u32,
-                    [key.key_color[0], key.key_color[1], key.key_color[2], key.tolerance],
+                    [
+                        key.key_color[0],
+                        key.key_color[1],
+                        key.key_color[2],
+                        key.tolerance,
+                    ],
                     key.spill,
                     Affine2x3::IDENTITY,
                 )
             }
         };
 
-        let pipeline = ctx.pipelines.get(ctx.device, ctx.shaders, "mask", ctx.target_format)?;
-        let sampler = ctx.device.create_sampler(&wgpu::SamplerDescriptor::default());
-        let mut params = base.clone();
+        let pipeline = ctx
+            .pipelines
+            .get(ctx.device, ctx.shaders, "mask", ctx.target_format)?;
+        let sampler = ctx
+            .device
+            .create_sampler(&wgpu::SamplerDescriptor::default());
+        let mut params = *base;
         params.mode = mode;
         params.p0 = [spill, 0.0, 0.0, 0.0];
         params.p1 = key_p1;
@@ -134,9 +144,7 @@ impl CompositorNode for MaskNode {
         let stand_in = input.clone();
         entries.push(wgpu::BindGroupEntry {
             binding: 3,
-            resource: wgpu::BindingResource::TextureView(
-                mask_view.as_ref().unwrap_or(&stand_in),
-            ),
+            resource: wgpu::BindingResource::TextureView(mask_view.as_ref().unwrap_or(&stand_in)),
         });
         let bind_group = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("tpt-visual: mask bind group"),

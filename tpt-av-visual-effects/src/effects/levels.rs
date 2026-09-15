@@ -1,7 +1,7 @@
 //! Levels adjustment: input black/white, gamma, output black/white.
 
 use super::param;
-use crate::effect::{Effect, EffectPassDesc, EffectParams};
+use crate::effect::{Effect, EffectParams, EffectPassDesc};
 use std::collections::BTreeMap;
 
 const COLOR_CORRECT_WGSL: &str = include_str!("../gpu_shaders/color_correct.wgsl");

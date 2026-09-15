@@ -37,7 +37,9 @@ impl TransformNode {
         canvas_size: (f32, f32),
     ) -> Affine2x3 {
         let m = t.to_matrix(clip_size, canvas_size);
-        let inv = m.inverse().unwrap_or(tpt_av_visual_timeline::transform::Matrix2x3::IDENTITY);
+        let inv = m
+            .inverse()
+            .unwrap_or(tpt_av_visual_timeline::transform::Matrix2x3::IDENTITY);
         // Canvas pixels → normalized target UV, then inverse affine to clip
         // pixels, then clip pixels → source UV.
         let sx = 1.0 / clip_size.0;
@@ -70,7 +72,9 @@ impl CompositorNode for TransformNode {
                 "transform node has no input".into(),
             ));
         };
-        let pipeline = ctx.pipelines.get(ctx.device, ctx.shaders, "transform", ctx.target_format)?;
+        let pipeline =
+            ctx.pipelines
+                .get(ctx.device, ctx.shaders, "transform", ctx.target_format)?;
         let sampler = ctx.device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some("tpt-visual: transform sampler"),
             address_mode_u: wgpu::AddressMode::ClampToEdge,
@@ -79,16 +83,12 @@ impl CompositorNode for TransformNode {
             min_filter: wgpu::FilterMode::Linear,
             ..wgpu::SamplerDescriptor::default()
         });
-        let params = base
-            .clone()
-            .with_affine2x3(&Self::transform_to_affine(
-                &self.transform,
-                self.clip_size,
-                (
-                    f32::from(u16::try_from(ctx.resolution.width).unwrap_or(u16::MAX)),
-                    f32::from(u16::try_from(ctx.resolution.height).unwrap_or(u16::MAX)),
-                ),
-            ));
+        let affine = Self::transform_to_affine(
+            &self.transform,
+            self.clip_size,
+            (ctx.resolution.width as f32, ctx.resolution.height as f32),
+        );
+        let params = (*base).with_affine2x3(&affine);
         let uniform = ctx
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -121,9 +121,6 @@ impl CompositorNode for TransformNode {
                 },
             ],
         });
-        if std::env::var("TPT_DEBUG").is_ok() {
-            eprintln!("transform pass begins");
-        }
         let mut pass = ctx.encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("tpt-visual: transform pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {

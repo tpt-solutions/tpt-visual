@@ -29,7 +29,6 @@ pub struct Affine2x3 {
 
 impl Affine2x3 {
     /// The identity transform.
-    
     pub const IDENTITY: Affine2x3 = Affine2x3 {
         a: 1.0,
         b: 0.0,
@@ -59,15 +58,8 @@ pub struct NodeFrame<'a> {
     /// Pixel format of node render targets (pooled textures are
     /// Rgba8Unorm; the final target may be a surface format).
     pub target_format: wgpu::TextureFormat,
-    /// Effect renderer for effect-chain nodes.
-    pub effects: &'a mut effects_impl::EffectRunner,
-}
-
-/// Implementation shim so `NodeFrame` can reference the effect runner
-/// without a circular module dependency.
-pub mod effects_impl {
-    /// Runs an effect chain (wraps `tpt-av-visual-effects::EffectRenderer`).
-    pub type EffectRunner = crate::renderer::FrameEffectRunner;
+    /// Effect runner for effect-chain nodes.
+    pub effects: &'a mut crate::renderer::FrameEffectRunner,
 }
 
 /// A single node in the compositing graph.

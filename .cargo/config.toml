@@ -1,0 +1,12 @@
+# Shortcuts for the quality gates and demos — no extra tooling required.
+# (`cargo lint`, `cargo gate`, `cargo demo`, ...)
+
+[alias]
+# Full clippy with warnings as errors.
+lint = "clippy --workspace --all-targets -- -D warnings"
+# Everything CI runs, one command per gate:
+check-fmt = "fmt --all --check"
+# Demo renders (release build recommended for 4K):
+demo = "run --release -p tpt-av-visual --example compositor_demo --"
+# `cargo render session.json out.avi 240` — headless timeline export.
+render = "run --release -p tpt-av-visual --example headless_render --"

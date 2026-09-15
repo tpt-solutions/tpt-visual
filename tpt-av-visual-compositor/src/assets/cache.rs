@@ -91,8 +91,7 @@ impl VideoAssetCache {
     pub fn prefetch(&mut self, start: u64, end: u64) {
         self.stop_prefetch();
         let stop = Arc::new(AtomicBool::new(false));
-        let ready: Arc<Mutex<HashMap<u64, Arc<VideoFrame>>>> =
-            Arc::new(Mutex::new(HashMap::new()));
+        let ready: Arc<Mutex<HashMap<u64, Arc<VideoFrame>>>> = Arc::new(Mutex::new(HashMap::new()));
         let decoder = self.decoder.clone();
         let proxy = self.proxy;
         let thread_stop = stop.clone();
@@ -143,7 +142,9 @@ impl VideoAssetCache {
             // Keep whatever frames finished.
             if let Ok(frames) = handle.ready.lock() {
                 for (index, frame) in frames.iter() {
-                    self.cpu_frames.entry(*index).or_insert_with(|| frame.clone());
+                    self.cpu_frames
+                        .entry(*index)
+                        .or_insert_with(|| frame.clone());
                 }
             }
         }
@@ -223,18 +224,11 @@ impl VideoAssetCache {
         Ok(())
     }
 
-    fn decode_sync(
-        &mut self,
-        frame: u64,
-        cache: bool,
-    ) -> Result<VideoFrame> {
+    fn decode_sync(&mut self, frame: u64, cache: bool) -> Result<VideoFrame> {
         let decoded = {
-            let mut decoder = self
-                .decoder
-                .lock()
-                .map_err(|_| crate::gpu::device::CompositorError::Decode(
-                    "decoder lock poisoned".into(),
-                ))?;
+            let mut decoder = self.decoder.lock().map_err(|_| {
+                crate::gpu::device::CompositorError::Decode("decoder lock poisoned".into())
+            })?;
             decoder.decode_frame(frame)?
         };
         if cache {

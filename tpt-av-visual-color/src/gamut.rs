@@ -5,11 +5,7 @@ use crate::Result;
 use crate::VisualError;
 use serde::{Deserialize, Serialize};
 
-const IDENTITY3: [[f32; 3]; 3] = [
-    [1.0, 0.0, 0.0],
-    [0.0, 1.0, 0.0],
-    [0.0, 0.0, 1.0],
-];
+const IDENTITY3: [[f32; 3]; 3] = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
 
 /// 3x3 row-major matrix multiply.
 fn mul3(a: &[[f32; 3]; 3], b: &[[f32; 3]; 3]) -> [[f32; 3]; 3] {
@@ -188,10 +184,7 @@ mod tests {
             for &g in &[0.0_f32, 0.18, 0.5, 1.0] {
                 let out = conv.convert([g, g, g]);
                 for v in out {
-                    assert!(
-                        close(v, g, 1e-4),
-                        "{src:?}->{dst:?}: grey {g} -> {out:?}"
-                    );
+                    assert!(close(v, g, 1e-4), "{src:?}->{dst:?}: grey {g} -> {out:?}");
                 }
             }
         }

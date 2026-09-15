@@ -71,7 +71,9 @@ impl VideoFrame {
                 plane, self.pixel_format
             )));
         }
-        let offset = self.pixel_format.plane_offset(self.width, self.height, plane);
+        let offset = self
+            .pixel_format
+            .plane_offset(self.width, self.height, plane);
         let size = self.pixel_format.plane_size(self.width, self.height, plane);
         self.data
             .get(offset..offset + size)
@@ -80,7 +82,9 @@ impl VideoFrame {
 
     /// Mutable variant of [`VideoFrame::plane`].
     pub fn plane_mut(&mut self, plane: usize) -> Result<&mut [u8]> {
-        let offset = self.pixel_format.plane_offset(self.width, self.height, plane);
+        let offset = self
+            .pixel_format
+            .plane_offset(self.width, self.height, plane);
         let size = self.pixel_format.plane_size(self.width, self.height, plane);
         self.data
             .get_mut(offset..offset + size)

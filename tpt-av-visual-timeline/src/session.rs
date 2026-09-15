@@ -6,8 +6,8 @@ use crate::asset::VideoAsset;
 use crate::clip::Clip;
 use crate::track::Track;
 use crate::{AssetId, ClipId, Result, SessionId, TimelineError, TrackId};
-use tpt_av_visual_utils::{FrameRate, Resolution};
 use std::collections::BTreeMap;
+use tpt_av_visual_utils::{FrameRate, Resolution};
 
 /// Global session metadata.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
@@ -176,6 +176,39 @@ impl Session {
             .unwrap_or(0)
     }
 
+    /// Deserializes a session from a JSON string.
+    ///
+    /// # Errors
+    /// Returns [`TimelineError::Serialization`] on malformed JSON.
+    pub fn from_json(json: &str) -> Result<Self> {
+        serde_json::from_str(json).map_err(|e| TimelineError::Serialization(e.to_string()))
+    }
+
+    /// Deserializes a session from a JSON file.
+    pub fn from_json_path(path: impl AsRef<std::path::Path>) -> Result<Self> {
+        let text = std::fs::read_to_string(path.as_ref()).map_err(|e| {
+            TimelineError::Serialization(format!("{}: {e}", path.as_ref().display()))
+        })?;
+        Self::from_json(&text)
+    }
+
+    /// Serializes the session to a JSON string (pretty-printed when asked).
+    pub fn to_json_string(&self, pretty: bool) -> Result<String> {
+        if pretty {
+            serde_json::to_string_pretty(self)
+        } else {
+            serde_json::to_string(self)
+        }
+        .map_err(|e| TimelineError::Serialization(e.to_string()))
+    }
+
+    /// Serializes the session to a JSON file.
+    pub fn to_json_path(&self, path: impl AsRef<std::path::Path>, pretty: bool) -> Result<()> {
+        let text = self.to_json_string(pretty)?;
+        std::fs::write(path.as_ref(), text)
+            .map_err(|e| TimelineError::Serialization(format!("{}: {e}", path.as_ref().display())))
+    }
+
     /// All clips active at `frame`, bottom-to-top track order.
     #[must_use]
     pub fn active_clips_at(&self, frame: u64) -> Vec<&Clip> {
@@ -268,7 +301,8 @@ mod tests {
         clip.opacity = 0.75;
         clip.blend_mode = crate::BlendMode::Screen;
         clip.transform.rotation = 12.5;
-        clip.effects.push(crate::EffectInstance::new("vignette").with_param("amount", 0.5));
+        clip.effects
+            .push(crate::EffectInstance::new("vignette").with_param("amount", 0.5));
         s.tracks[0].insert_clip(clip.clone()).unwrap();
 
         let json = serde_json::to_string_pretty(&s).unwrap();

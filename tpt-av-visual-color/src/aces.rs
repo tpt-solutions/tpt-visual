@@ -170,7 +170,10 @@ mod tests {
     #[test]
     fn negative_and_zero_inputs() {
         assert!(close(linear_to_acescct(0.0), 9.024_654e-3, 1e-6));
-        assert!(close(linear_to_acescct(-1.0), 9.024_654e-3, 1e-6), "clamped");
+        assert!(
+            close(linear_to_acescct(-1.0), 9.024_654e-3, 1e-6),
+            "clamped"
+        );
         assert_eq!(acescc_to_linear(-10.0), 0.0);
     }
 
@@ -202,6 +205,9 @@ mod tests {
         // from Rec.709 to within a small tolerance.
         let back = GamutConverter::new(ColorSpace::Aces, ColorSpace::Linear).unwrap();
         let red = back.convert_unclamped(conv.convert_unclamped([1.0, 0.0, 0.0]));
-        assert!((red[0] - 1.0).abs() < 1e-3 && red[1].abs() < 1e-3 && red[2].abs() < 1e-3, "{red:?}");
+        assert!(
+            (red[0] - 1.0).abs() < 1e-3 && red[1].abs() < 1e-3 && red[2].abs() < 1e-3,
+            "{red:?}"
+        );
     }
 }

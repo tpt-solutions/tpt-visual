@@ -79,7 +79,10 @@ impl Timecode {
                 frame_rate
             )));
         }
-        Ok(Timecode::from_frames((hh * 3600 + mm * 60 + ss) * fps + ff, frame_rate))
+        Ok(Timecode::from_frames(
+            (hh * 3600 + mm * 60 + ss) * fps + ff,
+            frame_rate,
+        ))
     }
 }
 
@@ -130,14 +133,23 @@ mod tests {
     fn formats_timecode() {
         let tc = Timecode::from_frames(24 * 3600 + 24 * 60 + 24 + 12, FrameRate::film());
         assert_eq!(tc.to_string_hhmmssff(), "01:01:01:12");
-        assert_eq!(Timecode::from_frames(0, FrameRate::film()).to_string(), "00:00:00:00");
+        assert_eq!(
+            Timecode::from_frames(0, FrameRate::film()).to_string(),
+            "00:00:00:00"
+        );
     }
 
     #[test]
     fn parses_all_arity_timecodes() {
         let fps = FrameRate::film();
-        assert_eq!(Timecode::parse("01:01:01:12", fps).unwrap().frames, 24 * 3600 + 24 * 60 + 24 + 12);
-        assert_eq!(Timecode::parse("01:01:12", fps).unwrap().frames, 24 * 60 + 24 + 12);
+        assert_eq!(
+            Timecode::parse("01:01:01:12", fps).unwrap().frames,
+            24 * 3600 + 24 * 60 + 24 + 12
+        );
+        assert_eq!(
+            Timecode::parse("01:01:12", fps).unwrap().frames,
+            24 * 60 + 24 + 12
+        );
         assert_eq!(Timecode::parse("01:12", fps).unwrap().frames, 36);
         assert!(Timecode::parse("00:00:00:24", fps).is_err()); // frame idx == fps
         assert!(Timecode::parse("bogus", fps).is_err());

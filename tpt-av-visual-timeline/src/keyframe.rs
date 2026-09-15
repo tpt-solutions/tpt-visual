@@ -122,8 +122,7 @@ impl KeyframeTrack {
             InterpolationMethod::Linear => raw_t,
             InterpolationMethod::Cubic => catmull_rom_t(kfs, right - 1, raw_t),
             InterpolationMethod::Bezier => {
-                let (x1, y1, x2, y2) =
-                    a.bezier.unwrap_or((0.25, 0.1, 0.25, 1.0));
+                let (x1, y1, x2, y2) = a.bezier.unwrap_or((0.25, 0.1, 0.25, 1.0));
                 cubic_bezier_ease(raw_t, x1, y1, x2, y2)
             }
         };

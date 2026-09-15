@@ -109,7 +109,10 @@ impl FrameRate {
     /// 30000/1001 NTSC.
     #[must_use]
     pub fn ntsc() -> Self {
-        FrameRate { num: 30000, den: 1001 }
+        FrameRate {
+            num: 30000,
+            den: 1001,
+        }
     }
 
     /// 24 fps.

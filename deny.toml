@@ -1,12 +1,15 @@
 # cargo-deny license audit for tpt-visual.
 #
-# Only permissive licenses are allowed. All copyleft licenses are denied and
-# any dependency without a detected license is denied. See CONTRIBUTING.md for
-# the dependency policy and spec section 8 for the rationale.
+# Only permissive licenses are allowed. cargo-deny v2 semantics: every
+# license NOT in `allow` is rejected (the explicit `deny` key was removed in
+# cargo-deny 0.20 — denying GPL/LGPL/AGPL/MPL is the default), and crates
+# without a detectable license are always rejected.
+#
+# See CONTRIBUTING.md for the dependency policy and spec section 8 for the
+# rationale.
 
 [licenses]
 version = 2
-unlicensed = "deny"
 
 allow = [
     "MIT",
@@ -15,15 +18,9 @@ allow = [
     "BSD-3-Clause",
     "ISC",
     "Zlib",
-]
-
-deny = [
-    "GPL-2.0",
-    "GPL-3.0",
-    "LGPL-2.1",
-    "LGPL-3.0",
-    "AGPL-3.0",
-    "MPL-2.0",
+    # Public-domain-equivalent / MIT-compatible, pulled in transitively:
+    "CC0-1.0",       # hexf-parse (via naga/wgsl)
+    "Unicode-3.0",   # unicode-ident and friends
 ]
 
 confidence-threshold = 0.93

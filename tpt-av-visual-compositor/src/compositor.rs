@@ -1,6 +1,6 @@
 //! The `Compositor`: the main video compositing engine.
 
-use crate::gpu::device::{CompositorError, Result};
+use crate::gpu::device::Result;
 use crate::gpu::pipeline::{NodeParams, PipelineCache};
 use crate::gpu::shader::ShaderRegistry;
 use crate::gpu::texture::TexturePool;
@@ -9,7 +9,7 @@ use crate::nodes::{BlendNode, CanvasNode, EffectNode, OutputNode, SourceNode, Tr
 use crate::renderer::FrameEffectRunner;
 use std::sync::Arc;
 use tpt_av_visual_effects::EffectRenderer;
-use tpt_av_visual_timeline::{AssetId, BlendMode, Clip, Session};
+use tpt_av_visual_timeline::{AssetId, Clip, Session};
 use tpt_av_visual_utils::{FrameRate, Resolution};
 
 /// The main video compositing engine.
@@ -39,12 +39,12 @@ impl Compositor {
     pub fn new(gpu: crate::gpu::device::GpuContext) -> Self {
         let effects = EffectRenderer::new(gpu.device().clone(), gpu.queue().clone());
         Compositor {
-            gpu,
+            gpu: gpu.clone(),
             graph: CompositorGraph::new(),
             frame_rate: FrameRate::film(),
             resolution: Resolution::full_hd(),
             texture_cache: TexturePool::new(),
-            pipelines: PipelineCache::new(),
+            pipelines: PipelineCache::new(gpu.device()),
             shaders: ShaderRegistry::new(),
             effects: FrameEffectRunner::new(effects),
         }
@@ -92,12 +92,12 @@ impl Compositor {
         target_format: wgpu::TextureFormat,
         frame: u64,
     ) -> Result<()> {
-        let mut encoder = self
-            .gpu
-            .device()
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("tpt-visual: composite"),
-            });
+        let mut encoder =
+            self.gpu
+                .device()
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("tpt-visual: composite"),
+                });
 
         let effects_runner = &mut self.effects;
 
@@ -141,15 +141,10 @@ impl Compositor {
             let asset = session.assets.get(&clip.asset_id);
             let clip_size = asset
                 .map(|a| (a.resolution.width as f32, a.resolution.height as f32))
-                .unwrap_or((
-                    self.resolution.width as f32,
-                    self.resolution.height as f32,
-                ));
+                .unwrap_or((self.resolution.width as f32, self.resolution.height as f32));
             let (transform, opacity) = clip.effective_state_at(frame);
-            let transform_id = graph.add_node(
-                Box::new(TransformNode::new(transform, clip_size)),
-                1,
-            );
+            let transform_id =
+                graph.add_node(Box::new(TransformNode::new(transform, clip_size)), 1);
             graph.connect(tail, transform_id, 0)?;
 
             // Blend onto the running canvas. Track opacity multiplies the
@@ -171,9 +166,6 @@ impl Compositor {
         let output_id = graph.add_node(Box::new(OutputNode::new()), 1);
         graph.connect(prev, output_id, 0)?;
 
-        if std::env::var("TPT_DEBUG").is_ok() {
-            eprintln!("render_clips: {} clips, final target view", clips.len());
-        }
         let mut params = NodeParams::new(self.resolution.width, self.resolution.height);
         // BGRA targets need an R/B swap in the final blit.
         if matches!(
@@ -198,11 +190,7 @@ fn resolve_effects(clip: &Clip, frame: u64) -> Vec<Box<dyn tpt_av_visual_effects
         let mut params = instance.parameters.clone();
         for (key, value) in params.iter_mut() {
             let property = format!("effects.{index}.{key}");
-            if let Some(track) = clip
-                .keyframes
-                .iter()
-                .find(|k| k.property == property)
-            {
+            if let Some(track) = clip.keyframes.iter().find(|k| k.property == property) {
                 *value = track.evaluate(frame);
             }
         }
@@ -214,15 +202,4 @@ fn resolve_effects(clip: &Clip, frame: u64) -> Vec<Box<dyn tpt_av_visual_effects
         }
     }
     out
-}
-
-/// Ensures the blend mode import is used even if the fold changes.
-#[allow(dead_code)]
-fn _blend_mode_roundtrip(mode: BlendMode) -> u32 {
-    mode.as_u32()
-}
-
-#[allow(dead_code)]
-fn _gpu_error(msg: &str) -> CompositorError {
-    CompositorError::Gpu(msg.into())
 }

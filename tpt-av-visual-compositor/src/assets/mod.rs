@@ -5,7 +5,7 @@ pub mod decoder;
 pub mod proxies;
 
 pub use cache::VideoAssetCache;
-pub use decoder::{FrameDecoder, ImageSequenceDecoder, ProceduralDecoder};
+pub use decoder::{FrameDecoder, ImageSequenceDecoder, ProceduralDecoder, SolidDecoder};
 pub use proxies::{generate_proxy, ProxyConfig};
 
 #[cfg(feature = "kinetix")]

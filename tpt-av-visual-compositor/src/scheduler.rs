@@ -72,11 +72,7 @@ mod tests {
         let writer = handle.clone();
         let t = std::thread::spawn(move || {
             for i in 0..100 {
-                let mut s = Session::new(
-                    format!("s{i}"),
-                    FrameRate::film(),
-                    Resolution::full_hd(),
-                );
+                let mut s = Session::new(format!("s{i}"), FrameRate::film(), Resolution::full_hd());
                 s.name = format!("s{i}");
                 writer.publish(s);
             }

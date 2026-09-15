@@ -171,7 +171,10 @@ impl ColorSpace {
             ColorSpace::Rec2020 => Primaries::REC2020,
             ColorSpace::DciP3 => Primaries::P3_D65,
             ColorSpace::Aces => Primaries::ACES_AP1,
-            ColorSpace::Custom { primaries, white_point } => Primaries {
+            ColorSpace::Custom {
+                primaries,
+                white_point,
+            } => Primaries {
                 red: primaries[0],
                 green: primaries[1],
                 blue: primaries[2],
@@ -220,7 +223,12 @@ mod tests {
 
     #[test]
     fn xyz_roundtrip_is_identity() {
-        for p in [Primaries::REC709, Primaries::REC2020, Primaries::P3_D65, Primaries::ACES_AP1] {
+        for p in [
+            Primaries::REC709,
+            Primaries::REC2020,
+            Primaries::P3_D65,
+            Primaries::ACES_AP1,
+        ] {
             let fwd = p.rgb_to_xyz();
             let back = p.xyz_to_rgb();
             // M · M⁻¹ = I (check via applying to basis vectors).

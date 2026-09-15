@@ -229,37 +229,43 @@ impl EffectRenderer {
         format: wgpu::TextureFormat,
     ) -> &wgpu::RenderPipeline {
         if !self.pipelines.contains_key(&(shader_source, format)) {
-            let shader = self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: Some("tpt-visual: effect shader"),
-                source: wgpu::ShaderSource::Wgsl(shader_source.into()),
-            });
-            let layout = self.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("tpt-visual: effect pipeline layout"),
-                bind_group_layouts: &[&self.bind_layout],
-                push_constant_ranges: &[],
-            });
-            let pipeline = self.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("tpt-visual: effect pipeline"),
-                layout: Some(&layout),
-                vertex: wgpu::VertexState {
-                    module: &shader,
-                    entry_point: "vs_main",
-                    buffers: &[],
-                },
-                fragment: Some(wgpu::FragmentState {
-                    module: &shader,
-                    entry_point: "fs_main",
-                    targets: &[Some(wgpu::ColorTargetState {
-                        format,
-                        blend: None,
-                        write_mask: wgpu::ColorWrites::ALL,
-                    })],
-                }),
-                primitive: wgpu::PrimitiveState::default(),
-                depth_stencil: None,
-                multisample: wgpu::MultisampleState::default(),
-                multiview: None,
-            });
+            let shader = self
+                .device
+                .create_shader_module(wgpu::ShaderModuleDescriptor {
+                    label: Some("tpt-visual: effect shader"),
+                    source: wgpu::ShaderSource::Wgsl(shader_source.into()),
+                });
+            let layout = self
+                .device
+                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    label: Some("tpt-visual: effect pipeline layout"),
+                    bind_group_layouts: &[&self.bind_layout],
+                    push_constant_ranges: &[],
+                });
+            let pipeline = self
+                .device
+                .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                    label: Some("tpt-visual: effect pipeline"),
+                    layout: Some(&layout),
+                    vertex: wgpu::VertexState {
+                        module: &shader,
+                        entry_point: "vs_main",
+                        buffers: &[],
+                    },
+                    fragment: Some(wgpu::FragmentState {
+                        module: &shader,
+                        entry_point: "fs_main",
+                        targets: &[Some(wgpu::ColorTargetState {
+                            format,
+                            blend: None,
+                            write_mask: wgpu::ColorWrites::ALL,
+                        })],
+                    }),
+                    primitive: wgpu::PrimitiveState::default(),
+                    depth_stencil: None,
+                    multisample: wgpu::MultisampleState::default(),
+                    multiview: None,
+                });
             self.pipelines.insert((shader_source, format), pipeline);
         }
         &self.pipelines[&(shader_source, format)]
@@ -318,9 +324,7 @@ impl EffectRenderer {
             );
             texture.create_view(&wgpu::TextureViewDescriptor::default())
         });
-        let curve_view_ref = curve_texture_view
-            .as_ref()
-            .unwrap_or(&self.neutral_lut);
+        let curve_view_ref = curve_texture_view.as_ref().unwrap_or(&self.neutral_lut);
 
         let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("tpt-visual: effect bind group"),

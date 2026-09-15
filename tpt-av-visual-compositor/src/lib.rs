@@ -18,6 +18,7 @@
 //!   decoding via `tpt-kinetix` behind the `kinetix` feature.
 
 pub mod assets;
+pub mod avi;
 pub mod compositor;
 pub mod gpu;
 pub mod graph;
@@ -26,16 +27,19 @@ pub mod nodes;
 pub mod renderer;
 pub mod scheduler;
 
+#[cfg(feature = "kinetix")]
+pub use assets::KinetixDecoder;
+pub use assets::{
+    FrameDecoder, ImageSequenceDecoder, ProceduralDecoder, ProxyConfig, SolidDecoder,
+    VideoAssetCache,
+};
 pub use compositor::Compositor;
-pub use gpu::device::{CompositorError, GpuContext, Result};
+pub use gpu::device::{CompositorError, GpuContext, GpuInfo, Result};
 pub use graph::CompositorGraph;
 pub use node::{CompositorNode, NodeId};
 pub use nodes::{
     BlendNode, CanvasNode, ChromaKeyParams, EffectNode, MaskNode, OutputNode, SourceNode,
     TransformNode, TransitionCurve, TransitionKind, TransitionNode,
 };
-pub use renderer::TimelineRenderer;
+pub use renderer::{default_decoder, TimelineRenderer};
 pub use scheduler::RenderStateHandle;
-pub use assets::{FrameDecoder, ImageSequenceDecoder, ProceduralDecoder, ProxyConfig, VideoAssetCache};
-#[cfg(feature = "kinetix")]
-pub use assets::KinetixDecoder;

@@ -267,7 +267,8 @@ mod tests {
         let mut left = Clip::new(ClipId(1), AssetId(7), 100, 25, 60);
         left.opacity = 0.5;
         left.blend_mode = BlendMode::Screen;
-        left.effects.push(EffectInstance::new("gaussian_blur").with_param("radius", 3.0));
+        left.effects
+            .push(EffectInstance::new("gaussian_blur").with_param("radius", 3.0));
 
         let right = left.split(ClipId(2), 130).expect("split inside clip");
         assert_eq!(left.start_frame, 100);
@@ -301,8 +302,7 @@ mod tests {
     fn keyframed_property_values() {
         let mut c = clip(0, 100);
         c.opacity = 0.8;
-        let mut track =
-            KeyframeTrack::new("transform.position.y", InterpolationMethod::Linear);
+        let mut track = KeyframeTrack::new("transform.position.y", InterpolationMethod::Linear);
         track.upsert_keyframe(Keyframe::at(0, 0.0));
         track.upsert_keyframe(Keyframe::at(100, 200.0));
         c.keyframes.push(track);

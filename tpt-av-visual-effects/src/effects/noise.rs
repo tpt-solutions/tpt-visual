@@ -1,7 +1,7 @@
 //! Noise generation (film grain) and reduction.
 
 use super::param;
-use crate::effect::{Effect, EffectPassDesc, EffectParams};
+use crate::effect::{Effect, EffectParams, EffectPassDesc};
 use std::collections::BTreeMap;
 
 const NOISE_WGSL: &str = include_str!("../gpu_shaders/noise.wgsl");
@@ -9,9 +9,10 @@ const NOISE_WGSL: &str = include_str!("../gpu_shaders/noise.wgsl");
 /// Deterministic hash matching the shader's `hash()` so CPU and GPU grain
 /// line up closely (exact float parity is not guaranteed across GPUs, but
 /// the statistical properties match).
+#[allow(clippy::excessive_precision)] // matches the WGSL hash constant
 fn grain_hash(x: f32, y: f32, seed: f32) -> f32 {
     let h = x * 127.1 + y * 311.7 + seed * 74.7;
-    let s = h.sin() * 43_758.5453;
+    let s = h.sin() * 43_758.545_3;
     s - s.floor()
 }
 
@@ -108,13 +109,15 @@ impl Effect for NoiseReduction {
                 let mut weight_sum = 0.0;
                 for dy in -1_i64..=1 {
                     for dx in -1_i64..=1 {
-                        let s = super::sample_clamped(&src, width, height, x as i64 + dx, y as i64 + dy);
+                        let s = super::sample_clamped(
+                            &src,
+                            width,
+                            height,
+                            x as i64 + dx,
+                            y as i64 + dy,
+                        );
                         let dist2 = {
-                            let d = [
-                                s[0] - center[0],
-                                s[1] - center[1],
-                                s[2] - center[2],
-                            ];
+                            let d = [s[0] - center[0], s[1] - center[1], s[2] - center[2]];
                             d[0] * d[0] + d[1] * d[1] + d[2] * d[2]
                         };
                         let w = (-dist2 * 32.0).exp();

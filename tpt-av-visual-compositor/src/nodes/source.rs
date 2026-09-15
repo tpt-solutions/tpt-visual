@@ -70,7 +70,10 @@ impl SourceNode {
     /// A source for the given asset; `set_view` must be called before
     /// execution.
     pub fn new(asset_id: tpt_av_visual_timeline::AssetId) -> Self {
-        SourceNode { asset_id, view: None }
+        SourceNode {
+            asset_id,
+            view: None,
+        }
     }
 
     /// Supplies the uploaded frame view for this frame.

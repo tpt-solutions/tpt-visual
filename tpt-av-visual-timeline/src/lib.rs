@@ -59,7 +59,7 @@ macro_rules! define_id {
 }
 
 define_id!(
-    /// Unique identifier of a [`Session`](session::Session).
+    /// Unique identifier of a [`Session`].
     SessionId
 );
 define_id!(
@@ -89,6 +89,10 @@ pub enum TimelineError {
     /// clips on one track).
     #[error("{0}")]
     Invalid(String),
+
+    /// A serialization/deserialization failure (JSON read/write).
+    #[error("serialization error: {0}")]
+    Serialization(String),
 }
 
 #[cfg(test)]

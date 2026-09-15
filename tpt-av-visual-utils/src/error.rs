@@ -62,15 +62,12 @@ mod tests {
             VisualError::NoDevice.to_string(),
             "no compatible GPU device is available"
         );
-        assert_eq!(
-            VisualError::gpu("boom").to_string(),
-            "GPU error: boom"
-        );
+        assert_eq!(VisualError::gpu("boom").to_string(), "GPU error: boom");
     }
 
     #[test]
     fn io_error_converts() {
-        let err: VisualError = std::io::Error::new(std::io::ErrorKind::Other, "disk").into();
+        let err: VisualError = std::io::Error::other("disk").into();
         assert!(err.to_string().contains("disk"));
     }
 }

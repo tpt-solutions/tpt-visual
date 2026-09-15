@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Result, error::VisualError};
+use crate::{error::VisualError, Result};
 
 /// Pixel / chroma-sampling formats carried by a [`VideoFrame`](crate::frame::VideoFrame).
 ///
@@ -77,8 +77,8 @@ impl PixelFormat {
     #[must_use]
     pub fn plane_dimensions(self, width: u32, height: u32, plane: usize) -> (u32, u32) {
         match (self, plane) {
-            (PixelFormat::Yuv420p, 1 | 2) => ((width + 1) / 2, (height + 1) / 2),
-            (PixelFormat::Yuv422p, 1 | 2) => ((width + 1) / 2, height),
+            (PixelFormat::Yuv420p, 1 | 2) => (width.div_ceil(2), height.div_ceil(2)),
+            (PixelFormat::Yuv422p, 1 | 2) => (width.div_ceil(2), height),
             _ => (width, height),
         }
     }
@@ -96,11 +96,9 @@ impl PixelFormat {
     #[must_use]
     pub fn expected_data_len(self, width: u32, height: u32) -> Option<usize> {
         match self {
-            PixelFormat::Rgb24 | PixelFormat::Bgr24 => {
-                (width as usize)
-                    .checked_mul(height as usize)?
-                    .checked_mul(3)
-            }
+            PixelFormat::Rgb24 | PixelFormat::Bgr24 => (width as usize)
+                .checked_mul(height as usize)?
+                .checked_mul(3),
             PixelFormat::Rgba8 => (width as usize)
                 .checked_mul(height as usize)?
                 .checked_mul(4),
@@ -145,23 +143,14 @@ impl std::fmt::Display for PixelFormat {
 }
 
 /// Validates that `data` is the right size for a `width x height` frame.
-pub fn validate_frame_data(
-    format: PixelFormat,
-    width: u32,
-    height: u32,
-    len: usize,
-) -> Result<()> {
+pub fn validate_frame_data(format: PixelFormat, width: u32, height: u32, len: usize) -> Result<()> {
     let expected = format
         .expected_data_len(width, height)
         .ok_or_else(|| VisualError::InvalidFrame("frame dimensions overflow".into()))?;
     if len != expected {
         return Err(VisualError::InvalidFrame(format!(
             "expected {} bytes for {}x{} {}, got {}",
-            expected,
-            width,
-            height,
-            format,
-            len
+            expected, width, height, format, len
         )));
     }
     Ok(())
@@ -174,7 +163,10 @@ mod tests {
     #[test]
     fn yuv420_layout() {
         assert_eq!(PixelFormat::Yuv420p.num_planes(), 3);
-        assert_eq!(PixelFormat::Yuv420p.plane_dimensions(1920, 1080, 1), (960, 540));
+        assert_eq!(
+            PixelFormat::Yuv420p.plane_dimensions(1920, 1080, 1),
+            (960, 540)
+        );
         assert_eq!(PixelFormat::Yuv420p.plane_size(1920, 1080, 0), 1920 * 1080);
         assert_eq!(
             PixelFormat::Yuv420p.expected_data_len(2, 2),

@@ -1,10 +1,10 @@
 //! End-to-end timeline workflows: build a session, edit it through the
 //! history, serialize it, and reload it.
 
-use tpt_av_visual_timeline as timeline;
 use timeline::{
     AssetId, BlendMode, Clip, EffectInstance, History, InterpolationMethod, Keyframe, Session,
 };
+use tpt_av_visual_timeline as timeline;
 use tpt_av_visual_utils::{FrameRate, PixelFormat, Resolution};
 
 fn demo_session() -> Session {
@@ -20,20 +20,12 @@ fn demo_session() -> Session {
     ));
 
     // Track 1: a trimmed clip with an animated position and a blur.
-    let mut clip = Clip::new(
-        session.allocate_clip_id(),
-        asset.id,
-        24,
-        12,
-        96,
-    );
+    let mut clip = Clip::new(session.allocate_clip_id(), asset.id, 24, 12, 96);
     clip.blend_mode = BlendMode::Normal;
     clip.effects
         .push(EffectInstance::new("gaussian_blur").with_param("radius", 2.5));
-    let mut pos_y = timeline::KeyframeTrack::new(
-        "transform.position.y",
-        InterpolationMethod::Bezier,
-    );
+    let mut pos_y =
+        timeline::KeyframeTrack::new("transform.position.y", InterpolationMethod::Bezier);
     pos_y.upsert_keyframe(Keyframe::bezier(24, -200.0, 0.25, 0.1, 0.25, 1.0));
     pos_y.upsert_keyframe(Keyframe::at(72, 0.0));
     clip.keyframes.push(pos_y);
