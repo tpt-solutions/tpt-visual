@@ -19,3 +19,6 @@ image = { workspace = true }
 serde = { workspace = true }
 log = { workspace = true }
 thiserror = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

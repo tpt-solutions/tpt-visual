@@ -1,0 +1,107 @@
+{
+  "id": 1,
+  "name": "Example timeline",
+  "frame_rate": {
+    "num": 24,
+    "den": 1
+  },
+  "resolution": {
+    "width": 1920,
+    "height": 1080
+  },
+  "tracks": [
+    {
+      "id": 1,
+      "name": "Video 1",
+      "clips": [
+        {
+          "id": 1,
+          "asset_id": 1,
+          "start_frame": 0,
+          "source_offset": 24,
+          "duration_frames": 96,
+          "transform": {
+            "position": [0.0, 0.0],
+            "scale": [1.0, 1.0],
+            "rotation": 0.0,
+            "anchor": [0.5, 0.5]
+          },
+          "opacity": 1.0,
+          "blend_mode": "Normal",
+          "keyframes": [
+            {
+              "property": "transform.position.y",
+              "keyframes": [
+                { "frame": 0, "value": -200.0, "bezier": [0.25, 0.1, 0.25, 1.0] },
+                { "frame": 48, "value": 0.0 }
+              ],
+              "interpolation": "Bezier"
+            }
+          ],
+          "effects": [
+            {
+              "effect_name": "gaussian_blur",
+              "parameters": { "radius": 2.0 }
+            }
+          ]
+        }
+      ],
+      "opacity": 1.0,
+      "blend_mode": "Normal",
+      "hidden": false,
+      "locked": false
+    },
+    {
+      "id": 2,
+      "name": "Tint",
+      "clips": [
+        {
+          "id": 2,
+          "asset_id": 1,
+          "start_frame": 24,
+          "source_offset": 0,
+          "duration_frames": 72,
+          "transform": {
+            "position": [40.0, -20.0],
+            "scale": [0.75, 0.75],
+            "rotation": 6.0,
+            "anchor": [0.5, 0.5]
+          },
+          "opacity": 0.8,
+          "blend_mode": "Screen",
+          "keyframes": [],
+          "effects": [
+            {
+              "effect_name": "vignette",
+              "parameters": { "amount": 0.6, "radius": 0.8, "softness": 0.5 }
+            }
+          ]
+        }
+      ],
+      "opacity": 1.0,
+      "blend_mode": "Normal",
+      "hidden": false,
+      "locked": false
+    }
+  ],
+  "assets": {
+    "1": {
+      "id": 1,
+      "file_path": "procedural://base",
+      "duration_frames": 240,
+      "frame_rate": { "num": 24, "den": 1 },
+      "resolution": { "width": 1920, "height": 1080 },
+      "pixel_format": "Rgba8",
+      "color_space": "Rec709"
+    }
+  },
+  "metadata": {
+    "timecode_start_frame": 0,
+    "working_color_space": "Rec709",
+    "description": "Two-layer demo: a moving base layer plus a screen-blended tint.",
+    "tags": {}
+  },
+  "next_track_id": 3,
+  "next_clip_id": 3,
+  "next_asset_id": 2
+}

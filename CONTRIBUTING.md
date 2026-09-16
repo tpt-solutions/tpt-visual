@@ -38,7 +38,9 @@ contributing to tpt-visual, you agree that:
 
 ## Engineering rules
 
-- **Edition/Rust**: edition 2021, `rust-version = "1.75"`.
+- **Edition/Rust**: edition 2021, `rust-version = "1.85"` (the spec's 1.75
+  floor predates the current transitive dependency graph; `cargo +1.85
+  check --workspace` is the supported MSRV check).
 - **Correctness**: every crate ships unit tests (`src` `#[cfg(test)]`) and
   integration tests (`tests/`). GPU-dependent tests must skip gracefully
   when no adapter is available (see `GpuContext::headless`).

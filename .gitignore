@@ -1,6 +1,7 @@
+# Workspace ships example binaries, so the lockfile is committed.
+# (Library-only purists may still ignore it locally.)
 /target
 **/target
-Cargo.lock
 
 # IDE
 .vscode/

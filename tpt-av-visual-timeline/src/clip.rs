@@ -29,11 +29,23 @@ pub enum BlendMode {
     Difference,
     /// Inverts based on backdrop.
     Exclusion,
+    /// Keeps the hue and saturation of the source with the luminance of
+    /// the backdrop.
+    Hue,
+    /// Keeps the luminance and hue of the backdrop with the saturation of
+    /// the source.
+    Saturation,
+    /// Keeps the luminance of the backdrop with the hue and saturation of
+    /// the source (the classic "colorize" mode).
+    Color,
+    /// Keeps the hue and saturation of the backdrop with the luminance of
+    /// the source.
+    Luminosity,
 }
 
 impl BlendMode {
     /// Every blend mode, in shader dispatch order.
-    pub const ALL: [BlendMode; 9] = [
+    pub const ALL: [BlendMode; 13] = [
         BlendMode::Normal,
         BlendMode::Multiply,
         BlendMode::Screen,
@@ -43,6 +55,10 @@ impl BlendMode {
         BlendMode::HardLight,
         BlendMode::Difference,
         BlendMode::Exclusion,
+        BlendMode::Hue,
+        BlendMode::Saturation,
+        BlendMode::Color,
+        BlendMode::Luminosity,
     ];
 
     /// Index used by the GPU blend shader's mode uniform.
@@ -58,6 +74,10 @@ impl BlendMode {
             BlendMode::HardLight => 6,
             BlendMode::Difference => 7,
             BlendMode::Exclusion => 8,
+            BlendMode::Hue => 9,
+            BlendMode::Saturation => 10,
+            BlendMode::Color => 11,
+            BlendMode::Luminosity => 12,
         }
     }
 }

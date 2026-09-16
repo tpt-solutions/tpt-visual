@@ -50,6 +50,51 @@ impl Timecode {
         format!("{h:02}:{m:02}:{s:02}:{f:02}")
     }
 
+    /// Formats as SMPTE drop-frame `HH:MM:SS;FF` for NTSC-family rates
+    /// (non-integer rates such as 30000/1001). Drop-frame skips two frame
+    /// *numbers* at the start of each minute except every tenth minute, so
+    /// the displayed clock tracks wall-clock time. Integer rates fall back
+    /// to non-drop formatting (identical to [`Timecode::to_string_hhmmssff`]
+    /// but with the `;` separator).
+    #[must_use]
+    pub fn to_string_drop_frame(self) -> String {
+        let fps_r = self.frame_rate.as_f64().round().max(1.0) as u64;
+        let drop = if self.frame_rate.den == 1 {
+            0
+        } else {
+            2 * (fps_r / 30).max(1)
+        };
+        if drop == 0 {
+            let f = self.frames % fps_r;
+            let total_secs = self.frames / fps_r;
+            return format!(
+                "{:02}:{:02}:{:02};{:02}",
+                total_secs / 3600,
+                (total_secs / 60) % 60,
+                total_secs % 60,
+                f
+            );
+        }
+
+        // Number of dropped frame numbers accumulated before `frames`:
+        // two per nominal minute boundary, minus two per ten-minute
+        // boundary (minutes 0, 10, 20, ... keep all their numbers).
+        let minute = 60 * fps_r;
+        let ten_minutes = 600 * fps_r;
+        let dropped = 2 * (self.frames / minute) - 2 * (self.frames / ten_minutes);
+        // Displayed frame number (the count including the skips).
+        let shown = self.frames + dropped;
+        let f = shown % fps_r;
+        let total_secs = shown / fps_r;
+        format!(
+            "{:02}:{:02}:{:02};{:02}",
+            total_secs / 3600,
+            (total_secs / 60) % 60,
+            total_secs % 60,
+            f
+        )
+    }
+
     /// Parses `HH:MM:SS:FF` or `MM:SS:FF` or `SS:FF` timecode strings.
     pub fn parse(s: &str, frame_rate: FrameRate) -> Result<Self> {
         let fps = frame_rate.as_f64().round().max(1.0) as u64;
@@ -160,6 +205,44 @@ mod tests {
         let tc = Timecode::from_frames(45, FrameRate::ntsc());
         // 45 frames at ~29.97 displays as frame 15 of second 1 (30 fps clock).
         assert_eq!(tc.to_string_hhmmssff(), "00:00:01:15");
+    }
+
+    #[test]
+    fn drop_frame_anchors() {
+        let ntsc = FrameRate::ntsc();
+        // Minute 0 has no drops.
+        assert_eq!(
+            Timecode::from_frames(0, ntsc).to_string_drop_frame(),
+            "00:00:00;00"
+        );
+        assert_eq!(
+            Timecode::from_frames(1799, ntsc).to_string_drop_frame(),
+            "00:00:59;29"
+        );
+        // First minute boundary drops 00:01:00:00 and :01.
+        assert_eq!(
+            Timecode::from_frames(1800, ntsc).to_string_drop_frame(),
+            "00:01:00;02"
+        );
+        // The ten-minute boundary drops nothing.
+        assert_eq!(
+            Timecode::from_frames(17982, ntsc).to_string_drop_frame(),
+            "00:10:00;00"
+        );
+        assert_eq!(
+            Timecode::from_frames(17983, ntsc).to_string_drop_frame(),
+            "00:10:00;01"
+        );
+        // Twenty minutes: two skipped ten-minute corrections.
+        assert_eq!(
+            Timecode::from_frames(35964, ntsc).to_string_drop_frame(),
+            "00:20:00;00"
+        );
+        // Integer rates never drop.
+        assert_eq!(
+            Timecode::from_frames(1440, FrameRate::film()).to_string_drop_frame(),
+            "00:01:00;00"
+        );
     }
 
     #[test]

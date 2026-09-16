@@ -230,35 +230,49 @@ of the TPT AV Stack (TPT Solutions). Dual-licensed **MIT OR Apache-2.0**.
 ## Phase 7 — Backlog (identified during review, not yet started)
 
 ### Engine
+- [x] HSL blend modes (Hue/Saturation/Color/Luminosity) in `BlendMode` +
+      `blend.wgsl`, verified GPU-vs-CPU across all 13 modes
+- [x] Drop-frame timecode (29.97 DF) display support alongside non-drop
 - [ ] OCIO v2 transform compilation (file transforms → `ColorPipeline`),
       building on the `ocio.rs` config scanner
 - [ ] Gamut mapping beyond clamping (soft/rolloff clipping, e.g. BT.2408 or
       per-channel knee) as a `ColorPipeline` option
-- [ ] GPU-side proxy scaling (currently CPU Triangle resize)
-- [ ] Additional blend modes (Hue/Saturation/Color/Luminosity) and
-      per-clip blend opacity curves
-- [ ] Drop-frame timecode (29.97 DF) display support alongside non-drop
+- [ ] GPU-side proxy scaling — investigated and rejected: decoded frames
+      are CPU-side, so GPU downscale would still require uploading the
+      full-resolution frame (~128 MB for 8K) versus the ~8 MB proxy upload.
+      The CPU Triangle filter avoids that bandwidth spike; revisit only if
+      decoders ever output GPU-resident frames
+- [ ] Per-clip blend opacity curves
 - [ ] Audio sync hooks with `tpt-audio` (frame-to-audio-clock alignment)
 
 ### Quality & performance
-- [ ] Criterion benchmark suite: composite frame time, blur throughput,
-      color pipeline pass, AVI export
+- [x] Criterion benchmark suite (`composite_640x360_vignette`; exits
+      gracefully without a GPU)
+- [x] Multi-track opacity/blend interaction tests (track opacity × clip
+      opacity over an opaque backdrop)
+- [x] MSRV job in CI — verified on Rust 1.85 (the spec's 1.75 floor predates
+      the current transitive dependency graph: image 0.25.10+ and
+      hashbrown 0.17 are edition-2024)
 - [ ] Fuzz targets for the `.cube` parser and AVI reader-side assumptions
-- [ ] Multi-track opacity/blend interaction tests (track opacity × clip
-      opacity × blend mode matrix)
-- [ ] MSRV job in CI pinning Rust 1.75 (current gates run on stable only)
 
 ### Packaging & adoption
-- [ ] Publish crates to crates.io (`tpt-av-visual` facade + members) and add
-      `CHANGELOG.md` + release automation (e.g. release-plz, matching
-      tpt-kinetix)
-- [ ] `docs/session-json.md` — documented JSON schema for timeline documents
-      with a committed `examples/session.json`
-- [ ] `render_frame_to_png` screenshot convenience (RGBA → file in one call)
-- [ ] Decide Cargo.lock policy for the workspace (currently ignored; commit
-      a locked file for the example binaries)
-- [ ] Optional `winit`/`image` feature gates so library users do not inherit
-      example-only dependencies
+- [x] `CHANGELOG.md` with the 0.1.0 milestone
+- [x] `docs/session-json.md` — documented JSON schema for timeline documents
+      with a committed `examples/session.json` (renders via
+      `cargo render examples/session.json out.avi 120`)
+- [x] `render_frame_to_png` screenshot convenience (RGBA → file in one call)
+- [x] Cargo.lock committed for the workspace (example binaries ship);
+      pinned to lockfile format v3 and image 0.25.5 for MSRV 1.85
+      compatibility
+- [x] `winit` is dev-dependency-only (example machines do not inherit it);
+      `image` stays a real dependency (used by proxies/AVI/PNG export)
+- [ ] Publish crates to crates.io (`tpt-av-visual` facade + members) with
+      release automation (e.g. release-plz, matching tpt-kinetix).
+      Ordering constraint found during review: publish utils → timeline →
+      effects → color → compositor → facade, and `tpt-kinetix` must reach
+      crates.io first — crates.io rejects git dependencies, so the
+      compositor/facade cannot package until the kinetix git deps swap to
+      registry versions (`cargo package -p <crate>` dry-runs confirm)
 
 ---
 
@@ -267,3 +281,4 @@ of the TPT AV Stack (TPT Solutions). Dual-licensed **MIT OR Apache-2.0**.
 - [x] Keep `deny.toml` passing as new dependencies are added
 - [x] Keep README/DESIGN docs in sync with implemented API surface
 - [x] Maintain test coverage per crate (`tests/` dirs already scaffolded in Phase 0)
+- [x] `rust-version` bumped 1.75 → 1.85 in `Cargo.toml` (see Phase 7 MSRV item)

@@ -1,0 +1,33 @@
+[package]
+name = "tpt-visual-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.tpt-av-visual-color]
+path = "../tpt-av-visual-color"
+
+[dependencies.tpt-av-visual-timeline]
+path = "../tpt-av-visual-timeline"
+
+[[bin]]
+name = "parse_cube"
+path = "fuzz_targets/parse_cube.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "session_json"
+path = "fuzz_targets/session_json.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]

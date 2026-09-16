@@ -285,6 +285,22 @@ impl TimelineRenderer {
         Ok(out)
     }
 
+    /// Renders the current playhead frame offscreen and saves it as a PNG
+    /// (screenshot export), advancing the playhead by one frame.
+    ///
+    /// # Errors
+    /// Returns [`CompositorError`] for GPU or file-encoding failures.
+    pub fn render_frame_to_png(&mut self, path: impl AsRef<Path>) -> Result<()> {
+        let rgba = self.render_frame_rgba()?;
+        let resolution = self.compositor.resolution;
+        let image = image::RgbaImage::from_raw(resolution.width, resolution.height, rgba)
+            .ok_or_else(|| CompositorError::Gpu("offscreen buffer size mismatch".into()))?;
+        image
+            .save(path)
+            .map_err(|e| CompositorError::Io(std::io::Error::other(e.to_string())))?;
+        Ok(())
+    }
+
     /// Renders `frames` frames from the current playhead into an MJPEG AVI
     /// video file and returns the number of bytes written.
     ///

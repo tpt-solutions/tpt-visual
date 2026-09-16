@@ -2,6 +2,8 @@
 resolver = "2"
 members = [
     "tpt-av-visual",
+    # fuzz/ is its own workspace (cargo-fuzz convention)
+
     "tpt-av-visual-utils",
     "tpt-av-visual-timeline",
     "tpt-av-visual-compositor",
@@ -14,7 +16,7 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/tpt-solutions/tpt-visual"
-rust-version = "1.75"
+rust-version = "1.85"
 
 [workspace.dependencies]
 # Internal crates.
@@ -47,6 +49,9 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
 anyhow = "1.0"
+
+# Benchmarking.
+criterion = "0.5"
 
 # Logging and errors.
 log = "0.4"

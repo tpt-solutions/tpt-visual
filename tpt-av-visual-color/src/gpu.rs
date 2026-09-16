@@ -20,10 +20,11 @@ struct GpuParams {
     out_transfer: u32,
     tonemap_mode: u32,
     use_lut: u32,
+    gamut_mode: u32,
     lut_size: f32,
-    // WGSL rounds the struct to 16-byte alignment for the trailing vec3;
-    // pad to the same 96-byte stride on the Rust side.
-    pad: [f32; 4],
+    // WGSL rounds the struct to 16-byte alignment; pad to the same 96-byte
+    // stride on the Rust side.
+    pad: [f32; 3],
 }
 
 /// WGSL mat3x3 columns from a row-major 3x3.
@@ -75,8 +76,9 @@ impl GpuColorPipeline {
             out_transfer: pipeline.output_transfer.as_u32(),
             tonemap_mode,
             use_lut,
+            gamut_mode: u32::from(pipeline.gamut_method == crate::GamutMethod::Rolloff),
             lut_size: pipeline.lut.as_ref().map_or(2.0, |l| l.size as f32),
-            pad: [0.0; 4],
+            pad: [0.0; 3],
         };
         let params_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("tpt-visual: color params"),

@@ -25,6 +25,8 @@
 // digits than f32 can hold so the published values stay greppable.
 #![allow(clippy::excessive_precision)]
 
+use serde::{Deserialize, Serialize};
+
 pub mod aces;
 pub mod color_space;
 pub mod gamut;
@@ -56,6 +58,55 @@ pub fn headless_device() -> Option<(wgpu::Device, wgpu::Queue)> {
     gpu::headless_device()
 }
 
+/// How out-of-gamut values are handled after the color-space conversion.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum GamutMethod {
+    /// Hard-clip channels to [0, 1] at encode time (current default).
+    #[default]
+    Clip,
+    /// Luminance-preserving rolloff: channels outside [0, 1] are pulled
+    /// toward the pixel's BT.709 luminance until the pixel is in gamut,
+    /// keeping brightness instead of shifting hue (recommended for
+    /// Rec.2020 → Rec.709 delivery).
+    Rolloff,
+}
+
+/// Luminance-preserving out-of-gamut compression: when the pixel's BT.709
+/// luminance is inside [0, 1] but a chroma channel is not, the offending
+/// channels are pulled toward the luminance until the pixel fits the target
+/// gamut. Brightness and hue are preserved; only saturation drops.
+///
+/// Pixels whose luminance itself is out of range (HDR highlights) are
+/// returned unchanged — no in-gamut color can hold that luminance, so the
+/// caller's encoder clamps them (pair with a [`ToneMapper`] to avoid this).
+#[must_use]
+pub fn rolloff_to_gamut(rgb: [f32; 3]) -> [f32; 3] {
+    let l = 0.212_6 * rgb[0] + 0.715_2 * rgb[1] + 0.072_2 * rgb[2];
+    if !(0.0..=1.0).contains(&l) {
+        return rgb; // out-of-range luminance: not recoverable by chroma roll-off
+    }
+    let n = rgb[0].min(rgb[1]).min(rgb[2]);
+    let mut out = rgb;
+    if n < 0.0 {
+        let factor = l / (l - n).max(1e-5);
+        out = [
+            l + (out[0] - l) * factor,
+            l + (out[1] - l) * factor,
+            l + (out[2] - l) * factor,
+        ];
+    }
+    let x = out[0].max(out[1]).max(out[2]);
+    if x > 1.0 {
+        let factor = (1.0 - l) / (x - l).max(1e-5);
+        out = [
+            l + (out[0] - l) * factor,
+            l + (out[1] - l) * factor,
+            l + (out[2] - l) * factor,
+        ];
+    }
+    out
+}
+
 /// The color processing pipeline: input/output spaces and transfers, an
 /// optional tone mapper, and an optional 3D LUT.
 #[derive(Debug, Clone)]
@@ -77,6 +128,9 @@ pub struct ColorPipeline {
     /// BT.2408, scale PQ input by `1 / 0.0203` so 203-nit reference white
     /// maps to 1.0 before tone mapping. Defaults to 1.0.
     pub input_linear_scale: f32,
+    /// Out-of-gamut handling after the gamut conversion. Defaults to
+    /// [`GamutMethod::Clip`].
+    pub gamut_method: GamutMethod,
 }
 
 impl ColorPipeline {
@@ -96,7 +150,15 @@ impl ColorPipeline {
             tone_mapper: None,
             lut: None,
             input_linear_scale: 1.0,
+            gamut_method: GamutMethod::Clip,
         }
+    }
+
+    /// Builder-style out-of-gamut handling.
+    #[must_use]
+    pub fn with_gamut_method(mut self, method: GamutMethod) -> Self {
+        self.gamut_method = method;
+        self
     }
 
     /// Builder-style linear input scale (see the field docs).
@@ -139,6 +201,9 @@ impl ColorPipeline {
         // 2. Gamut conversion (unclamped: out-of-gamut HDR is legal data).
         if let Ok(conv) = self.gamut_converter() {
             linear = conv.convert_unclamped(linear);
+            if self.gamut_method == GamutMethod::Rolloff {
+                linear = rolloff_to_gamut(linear);
+            }
         }
         // 3. Tone map.
         if let Some(tm) = &self.tone_mapper {
@@ -285,6 +350,39 @@ mod tests {
         for (o, i) in buf.iter().zip(original) {
             assert!((i32::from(*o) - i32::from(i)).abs() <= 1, "{buf:?}");
         }
+    }
+
+    #[test]
+    fn rolloff_preserves_luminance_and_fits_gamut() {
+        // Wide-gamut green slightly past Rec.709: luminance in range, green
+        // channel out.
+        let over = [0.0_f32, 1.2, 0.1];
+        let out = rolloff_to_gamut(over);
+        for v in out {
+            assert!((-0.001..=1.001).contains(&v), "in gamut: {out:?}");
+        }
+        let lum = |c: [f32; 3]| 0.212_6 * c[0] + 0.715_2 * c[1] + 0.072_2 * c[2];
+        assert!((lum(out) - lum(over)).abs() < 0.01, "luminance preserved");
+        // Green stays dominant (no hue collapse toward gray).
+        assert!(out[1] > out[0] && out[1] > out[2], "{out:?}");
+        // Roll-off keeps luminance where a hard clip loses it.
+        let clipped = over.map(|v| v.clamp(0.0, 1.0));
+        assert!(lum(out) > lum(clipped) - 0.005, "rolloff beats clip");
+    }
+
+    #[test]
+    fn rolloff_passes_through_out_of_range_luminance() {
+        // Luminance 2.1: no in-gamut color can hold it — returned unchanged
+        // for the encoder to clamp (pair with a tone mapper first).
+        let over = [0.0_f32, 3.0, 0.0];
+        assert_eq!(rolloff_to_gamut(over), over);
+    }
+
+    #[test]
+    fn gamut_method_serializes() {
+        let json = serde_json::to_string(&GamutMethod::Rolloff).unwrap();
+        let back: GamutMethod = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, GamutMethod::Rolloff);
     }
 
     #[test]

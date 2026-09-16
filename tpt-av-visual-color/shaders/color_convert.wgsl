@@ -16,8 +16,9 @@ struct ColorParams {
     out_transfer : u32,
     tonemap_mode : u32,
     use_lut : u32,
+    gamut_mode : u32,
     lut_size : f32,
-    _pad : vec3<f32>,
+    _pad : vec2<f32>,
 };
 
 @group(0) @binding(0) var input_texture : texture_2d<f32>;
@@ -118,6 +119,33 @@ fn encode_transfer(linear : f32, mode : u32, gamma : f32) -> f32 {
     }
 }
 
+fn lum3(c : vec3<f32>) -> f32 {
+    return dot(c, vec3<f32>(0.3, 0.59, 0.11));
+}
+
+// Luminance-preserving out-of-gamut compression (CPU mirror:
+// rolloff_to_gamut).
+fn rolloff_to_gamut(c : vec3<f32>) -> vec3<f32> {
+    let l = lum3(c);
+    // Out-of-range luminance is not recoverable by chroma roll-off; the
+    // final encode clamp (or a tone mapper) handles it.
+    if (l < 0.0 || l > 1.0) {
+        return c;
+    }
+    let n = min(min(c.r, c.g), c.b);
+    var out = c;
+    if (n < 0.0) {
+        let f = l / max(l - n, 1e-5);
+        out = l + (out - l) * f;
+    }
+    let x2 = max(max(out.r, out.g), out.b);
+    if (x2 > 1.0) {
+        let f = (1.0 - l) / max(x2 - l, 1e-5);
+        out = l + (out - l) * f;
+    }
+    return out;
+}
+
 fn tonemap(x : f32, mode : u32) -> f32 {
     switch mode {
         case 1u: { // Reinhard (white at 4.0)
@@ -147,6 +175,9 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
 
     // 2. Gamut conversion.
     linear = params.src_to_dst * linear;
+    if (params.gamut_mode == 1u) {
+        linear = rolloff_to_gamut(linear);
+    }
 
     // 3. Tone map.
     if (params.tonemap_mode != 0u) {

@@ -137,7 +137,10 @@ Built-in nodes:
 | `SourceNode` | Presents an uploaded frame (passthrough view). |
 | `EffectNode` | Runs a clip's effect chain via `tpt-av-visual-effects` (ping-pong scratch textures for separable passes). |
 | `TransformNode` | Position/scale/rotation by inverse-mapping target UVs through the clip affine; transparent outside the footprint. |
-| `BlendNode` | Normal/Multiply/Screen/Overlay/Darken/Lighten/HardLight/Difference/Exclusion with premultiplied-style alpha compositing. |
+| `BlendNode` | Normal/Multiply/Screen/Overlay/Darken/Lighten/HardLight/Difference/
+  Exclusion plus the HSL family (Hue/Saturation/Color/Luminosity), with
+  straight-alpha compositing; all 13 modes verified against a CPU reference
+  on the GPU. |
 | `MaskNode` | Luma matte (mask luminance scales alpha) or chroma key mode with spill suppression. |
 | `TransitionNode` | Crossfade/wipe/dissolve with configurable easing (linear/smooth/cubic-bezier) evaluated per frame. |
 | `OutputNode` | Blits the composed frame into the final target (R/B swap mode for BGRA surfaces). |
