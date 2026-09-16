@@ -276,6 +276,60 @@ of the TPT AV Stack (TPT Solutions). Dual-licensed **MIT OR Apache-2.0**.
 
 ---
 
+## Phase 8 — Security Hardening, Adoption Tooling & CLI
+
+Scoped from a full project review (stubs/TODO audit, security audit, tooling/
+adoption audit); Phase 7 backlog items above stay backlog and are out of
+scope here.
+
+### Security hardening
+- [ ] `deny.toml` — add `[advisories]` (RUSTSEC db, `yanked = "deny"`) and a
+      minimal `[bans]` table (`multiple-versions = "warn"`); update header
+      comment to reflect advisories+bans, not just licenses
+- [ ] `.github/workflows/ci.yml` — pin all third-party actions
+      (`actions/checkout`, `dtolnay/rust-toolchain`, `Swatinem/rust-cache`,
+      `EmbarkStudios/cargo-deny-action`) to commit SHAs, version kept as a
+      trailing comment
+- [ ] `tpt-av-visual-color/src/luts.rs` (`parse_cube`) — reject
+      `LUT_3D_SIZE`/`LUT_1D_SIZE` above a sane ceiling before allocating, use
+      a checked multiplication instead of unchecked `size*size*size`; add a
+      unit test for the oversized-header rejection
+
+### Pin the dev environment
+- [ ] `rust-toolchain.toml` — pin `channel = "1.85"` (matches documented MSRV)
+- [ ] `rustfmt.toml` — explicit project conventions (or a minimal file so
+      local `cargo fmt` can't silently diverge from CI)
+- [ ] `clippy.toml` — anchor for future project-specific lint config
+- [ ] `.editorconfig` — Rust conventions across `*.rs`/`*.toml`/`*.wgsl`/`*.md`
+
+### GitHub templates + Dependabot
+- [ ] `.github/ISSUE_TEMPLATE/bug_report.md` + `feature_request.md`
+- [ ] `.github/PULL_REQUEST_TEMPLATE.md` — checklist mirroring
+      `CONTRIBUTING.md`'s quality gates
+- [ ] `.github/dependabot.yml` — weekly `cargo` (root + `fuzz/`) and
+      `github-actions` ecosystem updates
+
+### Examples README
+- [ ] `examples/README.md` — one-line purpose + exact invocation per example,
+      plus the `just`/`cargo` alias shortcuts
+
+### `tpt-visual` CLI (new bin crate)
+- [ ] New workspace member `tpt-visual-cli` (binary `tpt-visual`), thin
+      wrapper over the `tpt-av-visual` facade (no duplicated logic), `clap`
+      derive for real `--help`/subcommands
+- [ ] `tpt-visual render <session.json> [--frames N] [--out out.avi]`
+- [ ] `tpt-visual probe-gpu`
+- [ ] `tpt-visual new <out.json> --preset <name>`
+- [ ] `tpt-visual presets list`
+- [ ] Wire into root `Cargo.toml` members, `justfile`, README tooling section
+
+### Session preset library
+- [ ] Bundle 3–4 `include_str!`'d session presets in `tpt-visual-cli`
+      (`single-clip`, `two-track-overlay`, `color-graded`), each valid input
+      to `Session::from_json_path`
+
+---
+
 ## Ongoing / Cross-Cutting
 
 - [x] Keep `deny.toml` passing as new dependencies are added
