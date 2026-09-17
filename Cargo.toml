@@ -54,7 +54,7 @@ anyhow = "1.0"
 clap = { version = "4", features = ["derive"] }
 
 # Benchmarking.
-criterion = "0.5"
+criterion = "0.8"
 
 # Logging and errors.
 log = "0.4"
