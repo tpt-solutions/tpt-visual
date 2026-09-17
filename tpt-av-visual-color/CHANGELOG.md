@@ -3,6 +3,14 @@
 All notable changes to the color-science crate. The stack-wide changelog
 lives at the repository root.
 
+## [Unreleased]
+
+### Added
+- OCIO `FileTransform` compilation: `ocio::compile_file_transform_lut` and
+  `ocio::compile_display_pipeline` load a scanned color space's referenced
+  `.cube` LUT and attach it to a `ColorPipeline`. Multi-step transform
+  graphs (matrix/exponent/CDL/group) are still out of scope.
+
 ## [0.1.0] — initial release
 
 ### Added

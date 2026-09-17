@@ -3,6 +3,14 @@
 All notable changes to the shared-types crate. The stack-wide changelog
 lives at the repository root.
 
+## [Unreleased]
+
+### Added
+- `audio_sync` — exact-rational frame ↔ audio-sample conversion
+  (`audio_sample_for_frame`, `frame_for_audio_sample`, `samples_per_frame`)
+  for aligning a `FrameRate`-timed video timeline against a sample-rate-timed
+  audio clock (e.g. `tpt-audio`), without a dependency on any audio crate.
+
 ## [0.1.0] — initial release
 
 ### Added

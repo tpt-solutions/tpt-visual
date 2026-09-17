@@ -1,19 +1,28 @@
 //! OpenColorIO config compatibility.
 //!
-//! Full OCIO v2 transform compilation is future work; what exists today is a
-//! **best-effort config scanner** that extracts the color spaces, displays,
-//! and roles declared in a `.ocio` (XML) config so host applications can
-//! enumerate a user's OCIO environment and map it onto
-//! [`crate::ColorPipeline`] inputs. Attribute parsing is deliberately
-//! minimal (key="value" scanning) — OCIO configs that rely on YAML syntax or
-//! exotic XML features are not understood.
+//! What exists today is a **best-effort config scanner** that extracts the
+//! color spaces, displays, and roles declared in a `.ocio` (XML) config so
+//! host applications can enumerate a user's OCIO environment and map it onto
+//! [`crate::ColorPipeline`] inputs, plus a **single-transform compiler**:
+//! when a `<ColorSpace>` entry's transform is a bare `<FileTransform src=".."/>`
+//! pointing at a `.cube` LUT, that LUT is loaded and attached to the compiled
+//! pipeline. Attribute parsing is deliberately minimal (key="value"
+//! scanning) — OCIO configs that rely on YAML syntax or exotic XML features
+//! are not understood. Multi-step transform graphs (`GroupTransform`,
+//! `MatrixTransform`, `ExponentTransform`, `CDLTransform`, chained
+//! `ColorSpaceTransform` references) are not compiled; only the single
+//! `FileTransform` case is, since it maps directly onto the pipeline's
+//! existing LUT slot.
+
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
 use crate::color_space::ColorSpace;
 use crate::hdr::ToneMapper;
+use crate::luts::{Cube, Lut3D};
 use crate::transfer::TransferFunction;
-use crate::ColorPipeline;
+use crate::{ColorPipeline, Result, VisualError};
 
 /// A minimal description of a color space entry parsed from an OCIO config.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -22,6 +31,9 @@ pub struct OcioColorSpace {
     pub name: String,
     /// The `family` attribute, when present (used for UI grouping).
     pub family: Option<String>,
+    /// The `src` attribute of a nested `<FileTransform src="..."/>`, when
+    /// this color space's transform is a bare file transform.
+    pub file_transform_src: Option<String>,
 }
 
 /// A role mapping from an OCIO config (`<Role name="..." colorspace="..."/>`).
@@ -38,7 +50,9 @@ pub struct OcioRole {
 pub struct OcioSupport {
     /// Config scanning (color spaces, roles) is implemented.
     pub config_scanning: bool,
-    /// Whether `ColorPipeline` can compile OCIO file transforms (future).
+    /// Whether `ColorPipeline` can compile a color space's `FileTransform`
+    /// (a bare reference to a `.cube` LUT) into the pipeline's LUT slot.
+    /// Multi-step transform graphs are not compiled.
     pub file_transforms: bool,
 }
 
@@ -47,7 +61,7 @@ pub struct OcioSupport {
 pub const fn ocio_support() -> OcioSupport {
     OcioSupport {
         config_scanning: true,
-        file_transforms: false,
+        file_transforms: true,
     }
 }
 
@@ -110,9 +124,89 @@ pub fn scan_config_colorspaces(config: &str) -> Vec<OcioColorSpace> {
             .iter()
             .find(|(k, _)| k == "family")
             .map(|(_, v)| v.clone());
-        out.push(OcioColorSpace { name, family });
+        // The body of this element runs until the next `<ColorSpace` (the
+        // split boundary) or the end of the config — either way, a nested
+        // `<FileTransform>` for *this* color space lives in `segment` past
+        // `tag_end`.
+        let file_transform_src = segment[tag_end..].find("<FileTransform").and_then(|rel| {
+            let ft = &segment[tag_end + rel + "<FileTransform".len()..];
+            let ft_end = ft.find('>')?;
+            attributes(&ft[..ft_end])
+                .into_iter()
+                .find(|(k, _)| k == "src")
+                .map(|(_, v)| v)
+        });
+        out.push(OcioColorSpace {
+            name,
+            family,
+            file_transform_src,
+        });
     }
     out
+}
+
+/// Finds a scanned color space by name and, if its transform is a bare
+/// `<FileTransform src="..."/>` referencing a `.cube` file, loads and
+/// returns that LUT. `search_dir` is resolved against `src` the way OCIO
+/// resolves a config's `search_path` (relative to the config's own
+/// directory).
+///
+/// Returns `Ok(None)` when the color space is not found or has no
+/// (recognized) file transform — this is not an error, since most color
+/// spaces in a real config describe matrix/exponent transforms this
+/// compiler does not attempt. Returns `Err` when a file transform is
+/// present but the referenced file cannot be read/parsed, or resolves to a
+/// 1D rather than 3D LUT (`ColorPipeline` only carries a 3D LUT slot).
+pub fn compile_file_transform_lut(
+    config: &str,
+    search_dir: &Path,
+    name: &str,
+) -> Result<Option<Lut3D>> {
+    let Some(space) = scan_config_colorspaces(config)
+        .into_iter()
+        .find(|cs| cs.name == name)
+    else {
+        return Ok(None);
+    };
+    let Some(src) = space.file_transform_src else {
+        return Ok(None);
+    };
+    let path: PathBuf = search_dir.join(&src);
+    let text = std::fs::read_to_string(&path).map_err(|e| {
+        VisualError::InvalidOperation(format!(
+            "OCIO FileTransform for \"{name}\" references \"{}\" ({}): {e}",
+            path.display(),
+            src
+        ))
+    })?;
+    match crate::luts::parse_cube(&text)? {
+        Cube::Lut3D(lut) => Ok(Some(lut)),
+        Cube::Lut1D(_) => Err(VisualError::InvalidOperation(format!(
+            "OCIO FileTransform for \"{name}\" resolves to a 1D LUT (\"{src}\"); \
+             ColorPipeline only carries a 3D LUT"
+        ))),
+    }
+}
+
+/// Compiles a full display pipeline for a named color space from a scanned
+/// OCIO config: maps the name to an engine color space/transfer (as
+/// [`display_pipeline_for`]) and, when that color space declares a bare
+/// `FileTransform`, loads and attaches the referenced `.cube` LUT.
+///
+/// This is still name-mapping plus a single optional LUT stage, not a
+/// general OCIO transform interpreter — see the module docs.
+pub fn compile_display_pipeline(
+    config: &str,
+    search_dir: &Path,
+    name: &str,
+) -> Result<Option<ColorPipeline>> {
+    let Some(mut pipeline) = display_pipeline_for(name) else {
+        return Ok(None);
+    };
+    if let Some(lut) = compile_file_transform_lut(config, search_dir, name)? {
+        pipeline = pipeline.with_lut(lut);
+    }
+    Ok(Some(pipeline))
 }
 
 /// Scans an OCIO config for its role mappings.
@@ -161,6 +255,106 @@ mod tests {
         assert_eq!(spaces[0].family.as_deref(), Some("ACES"));
         assert_eq!(spaces[2].name, "Raw");
         assert_eq!(spaces[2].family, None);
+        assert_eq!(spaces[0].file_transform_src, None);
+    }
+
+    const SAMPLE_WITH_FILE_TRANSFORM: &str = r#"
+    <OCIOConfig>
+        <ColorSpace name="Look - Teal Orange" family="Look">
+            <FileTransform src="teal_orange.cube" interpolation="linear"/>
+        </ColorSpace>
+        <ColorSpace name="Raw" isdata="true"/>
+    </OCIOConfig>
+    "#;
+
+    #[test]
+    fn scans_nested_file_transform_src() {
+        let spaces = scan_config_colorspaces(SAMPLE_WITH_FILE_TRANSFORM);
+        assert_eq!(spaces[0].name, "Look - Teal Orange");
+        assert_eq!(
+            spaces[0].file_transform_src.as_deref(),
+            Some("teal_orange.cube")
+        );
+        assert_eq!(spaces[1].file_transform_src, None);
+    }
+
+    #[test]
+    fn compile_file_transform_lut_loads_referenced_cube() {
+        let dir = std::env::temp_dir().join(format!(
+            "tpt-ocio-test-{}-{}",
+            std::process::id(),
+            "compile_file_transform_lut_loads_referenced_cube"
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let cube_path = dir.join("teal_orange.cube");
+        std::fs::write(
+            &cube_path,
+            "LUT_3D_SIZE 2\n0 0 0\n1 0 0\n0 1 0\n1 1 0\n0 0 1\n1 0 1\n0 1 1\n1 1 1\n",
+        )
+        .unwrap();
+
+        let lut =
+            compile_file_transform_lut(SAMPLE_WITH_FILE_TRANSFORM, &dir, "Look - Teal Orange")
+                .unwrap()
+                .expect("file transform LUT");
+        assert_eq!(lut.size, 2);
+        assert_eq!(lut.sample([1.0, 0.0, 0.0]), [1.0, 0.0, 0.0]);
+
+        // A color space with no FileTransform compiles to `None`, not an error.
+        assert!(
+            compile_file_transform_lut(SAMPLE_WITH_FILE_TRANSFORM, &dir, "Raw")
+                .unwrap()
+                .is_none()
+        );
+        // An unknown name also compiles to `None`.
+        assert!(
+            compile_file_transform_lut(SAMPLE_WITH_FILE_TRANSFORM, &dir, "Nope")
+                .unwrap()
+                .is_none()
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn compile_file_transform_lut_errors_on_missing_file() {
+        let dir = std::env::temp_dir();
+        let err =
+            compile_file_transform_lut(SAMPLE_WITH_FILE_TRANSFORM, &dir, "Look - Teal Orange")
+                .unwrap_err();
+        assert!(err.to_string().contains("teal_orange.cube"));
+    }
+
+    #[test]
+    fn compile_display_pipeline_attaches_lut_and_maps_name() {
+        let dir = std::env::temp_dir().join(format!(
+            "tpt-ocio-test-{}-{}",
+            std::process::id(),
+            "compile_display_pipeline_attaches_lut_and_maps_name"
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("teal_orange.cube"),
+            "LUT_3D_SIZE 2\n0 0 0\n1 0 0\n0 1 0\n1 1 0\n0 0 1\n1 0 1\n0 1 1\n1 1 1\n",
+        )
+        .unwrap();
+
+        // Name mapping only recognizes industry-standard tokens; a "Look"
+        // family name has none, so no base color space is inferred and the
+        // whole compile is `None` even though the LUT file exists.
+        assert!(
+            compile_display_pipeline(SAMPLE_WITH_FILE_TRANSFORM, &dir, "Look - Teal Orange")
+                .unwrap()
+                .is_none()
+        );
+
+        let pipeline = compile_display_pipeline(SAMPLE, &dir, "ACES - ACEScg")
+            .unwrap()
+            .expect("ACES maps to a known space");
+        assert_eq!(pipeline.input_space, ColorSpace::Aces);
+        assert!(pipeline.lut.is_none(), "SAMPLE has no FileTransform");
+
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
@@ -176,8 +370,8 @@ mod tests {
         let support = ocio_support();
         assert!(support.config_scanning);
         assert!(
-            !support.file_transforms,
-            "transform compiler is future work"
+            support.file_transforms,
+            "single FileTransform LUT compilation is implemented"
         );
     }
 }

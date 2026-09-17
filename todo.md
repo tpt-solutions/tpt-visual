@@ -321,10 +321,6 @@ scope here.
 - [x] `examples/README.md` — one-line purpose + exact invocation per
       example, plus the `just`/`cargo` alias shortcuts
 
-### Examples README
-- [ ] `examples/README.md` — one-line purpose + exact invocation per example,
-      plus the `just`/`cargo` alias shortcuts
-
 ### `tpt-visual` CLI (new bin crate)
 - [x] Workspace member `tpt-visual-cli` (binary `tpt-visual`), thin wrapper
       over the `tpt-av-visual` facade (no duplicated logic), `clap` derive
@@ -347,16 +343,33 @@ scope here.
 ---
 
 ### Ecosystem & integrations (future)
-- [ ] OCIO v2 transform compilation: compile scanned file transforms into
-      `ColorPipeline` passes (builds on the scanner + name mapping)
-- [ ] Audio sync hooks with `tpt-audio` (frame-to-audio-clock alignment)
+- [x] OCIO v2 transform compilation: `ocio::compile_file_transform_lut` /
+      `ocio::compile_display_pipeline` compile a scanned color space's bare
+      `<FileTransform src="...">` (`.cube` reference) into a `ColorPipeline`
+      LUT pass, on top of the existing scanner + name mapping. Multi-step
+      transform graphs (`GroupTransform`/`MatrixTransform`/`ExponentTransform`/
+      `CDLTransform`, chained `ColorSpaceTransform` references) remain
+      unsupported — `ocio_support().file_transforms` now reflects the
+      narrower, implemented scope
+- [x] Audio sync hooks with `tpt-audio` (frame-to-audio-clock alignment):
+      `tpt-av-visual-utils::audio_sync` (`audio_sample_for_frame`,
+      `frame_for_audio_sample`, `samples_per_frame`) converts between a
+      `FrameRate`-timed video frame index and a sample-rate-timed audio
+      position using exact rational (u128) arithmetic — no floating-point
+      drift at non-integer rates like 29.97. Deliberately has no dependency
+      on the `tpt-audio` crates themselves (a separate, still-evolving
+      sibling workspace): either side of a real integration can call these
+      free functions with plain integers, so the visual stack doesn't couple
+      to `tpt-audio`'s internal types/API surface
 - [ ] Publish crates to crates.io — blocked on `tpt-kinetix` publishing
       first (git dependencies are rejected by crates.io); then swap the git
       deps to registry versions in order utils → timeline → effects →
       color → compositor → facade, and add release automation (release-plz)
-- [ ] Repo-external packaging polish: relocate `examples/` into the facade
-      crate (or add package `include` rules) so published packages carry
-      their examples
+- [x] Repo-external packaging polish: relocated the three `.rs` example
+      sources into `tpt-av-visual/examples/` (cargo auto-discovers them,
+      dropping the manual `[[example]] path = "../examples/..."` overrides)
+      so `cargo package -p tpt-av-visual` carries them; `examples/session.json`
+      and `examples/README.md` stay at the repo root as sample data/docs
 - [ ] Docs site (rustdoc theme + mdBook guide) beyond the current
       README/DESIGN/docs pages
 
