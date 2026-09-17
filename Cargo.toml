@@ -40,7 +40,7 @@ tpt-kinetix-h264 = { git = "https://github.com/tpt-solutions/tpt-kinetix", rev =
 # GPU abstraction (WebGPU) and friends.
 wgpu = "0.19"
 pollster = "0.3"
-winit = "0.29"
+winit = "0.30"
 bytemuck = { version = "1.14", features = ["derive"] }
 arc-swap = "1.7"
 
