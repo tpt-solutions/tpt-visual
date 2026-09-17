@@ -10,6 +10,11 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::color_space::ColorSpace;
+use crate::hdr::ToneMapper;
+use crate::transfer::TransferFunction;
+use crate::ColorPipeline;
+
 /// A minimal description of a color space entry parsed from an OCIO config.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OcioColorSpace {
@@ -174,5 +179,119 @@ mod tests {
             !support.file_transforms,
             "transform compiler is future work"
         );
+    }
+}
+
+/// Heuristically maps an OCIO color-space name (or role target) onto the
+/// engine's known color spaces and transfer functions.
+///
+/// This is name matching, **not** transform compilation: it recognizes the
+/// common industry naming conventions (`ACEScg`, `sRGB`, `Rec.709`,
+/// `Rec.2020`, `PQ`/`HDR10`, `HLG`, `P3`/`DCI`, `linear`) so a scanned OCIO
+/// config can drive a [`ColorPipeline`] without a full OCIO runtime. Space
+/// identification ignores separators and case; first match wins.
+#[must_use]
+pub fn color_space_for_name(name: &str) -> Option<(ColorSpace, TransferFunction)> {
+    let n = name.to_ascii_lowercase();
+    let n = n.replace([' ', '-', '.', '_'], "");
+
+    // More specific patterns first.
+    if n.contains("acescg") {
+        return Some((ColorSpace::Aces, TransferFunction::Linear));
+    }
+    if n.contains("aces2065") || n == "aces" || n.contains("ap0") {
+        return Some((ColorSpace::Aces, TransferFunction::Linear));
+    }
+    if n.contains("rec2020") || n.contains("bt2020") || n.contains("2020") {
+        let tf = if n.contains("pq") || n.contains("hdr10") {
+            TransferFunction::Pq
+        } else if n.contains("hlg") {
+            TransferFunction::Hlg
+        } else {
+            TransferFunction::Linear
+        };
+        return Some((ColorSpace::Rec2020, tf));
+    }
+    if n.contains("p3") || n.contains("dci") {
+        let tf = if n.contains("pq") {
+            TransferFunction::Pq
+        } else {
+            TransferFunction::Gamma(2.6)
+        };
+        return Some((ColorSpace::DciP3, tf));
+    }
+    if n.contains("srgb") || n.contains("texture") || n.contains("display") {
+        return Some((ColorSpace::Srgb, TransferFunction::Srgb));
+    }
+    if n.contains("rec709") || n.contains("bt709") || n.contains("709") {
+        return Some((ColorSpace::Rec709, TransferFunction::Gamma(2.4)));
+    }
+    if n.contains("linear") || n.contains("raw") || n.contains("data") {
+        return Some((ColorSpace::Linear, TransferFunction::Linear));
+    }
+    None
+}
+
+/// Builds an sRGB display pipeline from a scanned OCIO color-space name:
+/// decodes that space, converts gamut, tone maps when the input is HDR, and
+/// encodes to sRGB. Returns `None` when the name is not recognized.
+///
+/// ```
+/// use tpt_av_visual_color::ocio::display_pipeline_for;
+///
+/// let pipeline = display_pipeline_for("ACES - ACEScg").expect("known name");
+/// // Render with `pipeline` to convert ACEScg scene data to an sRGB display.
+/// ```
+#[must_use]
+pub fn display_pipeline_for(name: &str) -> Option<ColorPipeline> {
+    let (space, transfer) = color_space_for_name(name)?;
+    let mut pipeline =
+        ColorPipeline::new(space, transfer, ColorSpace::Srgb, TransferFunction::Srgb);
+    if matches!(transfer, TransferFunction::Pq | TransferFunction::Hlg) {
+        pipeline = pipeline
+            .with_input_linear_scale(1.0 / 0.0203)
+            .with_tone_mapper(ToneMapper::AcesFilmic);
+    }
+    Some(pipeline)
+}
+
+#[cfg(test)]
+mod display_tests {
+    use super::*;
+
+    #[test]
+    fn maps_common_industry_names() {
+        let (space, tf) = color_space_for_name("ACES - ACEScg").expect("acescg");
+        assert_eq!(space, ColorSpace::Aces);
+        assert_eq!(tf, TransferFunction::Linear);
+
+        let (space, tf) = color_space_for_name("sRGB - Texture").expect("srgb");
+        assert_eq!(space, ColorSpace::Srgb);
+        assert_eq!(tf, TransferFunction::Srgb);
+
+        let (space, tf) = color_space_for_name("Rec.2020 HDR10 PQ").expect("2020 pq");
+        assert_eq!(space, ColorSpace::Rec2020);
+        assert_eq!(tf, TransferFunction::Pq);
+    }
+
+    #[test]
+    fn unknown_names_return_none() {
+        assert!(color_space_for_name("Studio Camera A").is_none());
+        assert!(color_space_for_name("").is_none());
+    }
+
+    #[test]
+    fn display_pipeline_handles_hdr() {
+        let p = display_pipeline_for("Rec.2020 HDR10 PQ").expect("known");
+        assert!(p.tone_mapper.is_some(), "PQ input needs tone mapping");
+        assert!((p.input_linear_scale - 1.0 / 0.0203).abs() < 1e-6);
+        assert_eq!(p.output_transfer, TransferFunction::Srgb);
+    }
+
+    #[test]
+    fn display_pipeline_srgb_is_unity() {
+        let p = display_pipeline_for("sRGB - Display").expect("known");
+        assert_eq!(p.input_transfer, TransferFunction::Srgb);
+        assert!(p.tone_mapper.is_none());
     }
 }

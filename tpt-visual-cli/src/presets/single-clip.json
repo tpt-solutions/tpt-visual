@@ -1,0 +1,52 @@
+{
+  "id": 1,
+  "name": "single-clip",
+  "frame_rate": { "num": 24, "den": 1 },
+  "resolution": { "width": 1280, "height": 720 },
+  "tracks": [
+    {
+      "id": 1,
+      "name": "Video 1",
+      "clips": [
+        {
+          "id": 1,
+          "asset_id": 1,
+          "start_frame": 0,
+          "source_offset": 0,
+          "duration_frames": 120,
+          "transform": { "position": [0.0, 0.0], "scale": [1.0, 1.0], "rotation": 0.0, "anchor": [0.5, 0.5] },
+          "opacity": 1.0,
+          "blend_mode": "Normal",
+          "keyframes": [],
+          "effects": [
+            { "effect_name": "vignette", "parameters": { "amount": 0.5, "radius": 0.8, "softness": 0.5 } }
+          ]
+        }
+      ],
+      "opacity": 1.0,
+      "blend_mode": "Normal",
+      "hidden": false,
+      "locked": false
+    }
+  ],
+  "assets": {
+    "1": {
+      "id": 1,
+      "file_path": "procedural://base",
+      "duration_frames": 240,
+      "frame_rate": { "num": 24, "den": 1 },
+      "resolution": { "width": 1280, "height": 720 },
+      "pixel_format": "Rgba8",
+      "color_space": "Rec709"
+    }
+  },
+  "metadata": {
+    "timecode_start_frame": 0,
+    "working_color_space": "Rec709",
+    "description": "One full-frame clip with a vignette.",
+    "tags": {}
+  },
+  "next_track_id": 2,
+  "next_clip_id": 2,
+  "next_asset_id": 2
+}

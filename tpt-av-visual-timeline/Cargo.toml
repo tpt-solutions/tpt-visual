@@ -7,7 +7,7 @@ license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 authors = ["TPT Solutions"]
-keywords = ["video", "timeline", "editor", "nle"]
+keywords = ["video", "timeline", "non-destructive", "video-editor", "keyframe", "undo", "nle"]
 categories = ["multimedia::video", "data-structures"]
 
 [dependencies]

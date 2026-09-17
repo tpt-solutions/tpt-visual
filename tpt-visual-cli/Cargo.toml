@@ -1,0 +1,18 @@
+[package]
+name = "tpt-visual-cli"
+description = "Command-line interface for the TPT AV visual stack: render timelines, probe GPUs, generate session presets"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+authors = ["TPT Solutions"]
+
+[[bin]]
+name = "tpt-visual"
+path = "src/main.rs"
+
+[dependencies]
+tpt-av-visual = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }

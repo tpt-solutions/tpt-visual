@@ -233,29 +233,36 @@ of the TPT AV Stack (TPT Solutions). Dual-licensed **MIT OR Apache-2.0**.
 - [x] HSL blend modes (Hue/Saturation/Color/Luminosity) in `BlendMode` +
       `blend.wgsl`, verified GPU-vs-CPU across all 13 modes
 - [x] Drop-frame timecode (29.97 DF) display support alongside non-drop
-- [ ] OCIO v2 transform compilation (file transforms → `ColorPipeline`),
-      building on the `ocio.rs` config scanner
-- [ ] Gamut mapping beyond clamping (soft/rolloff clipping, e.g. BT.2408 or
-      per-channel knee) as a `ColorPipeline` option
-- [ ] GPU-side proxy scaling — investigated and rejected: decoded frames
+- [x] Gamut mapping beyond clamping — `GamutMethod::Rolloff`
+      (luminance-preserving chroma compression) in `ColorPipeline`, CPU +
+      GPU parity
+- [x] Per-clip blend opacity curves — eased `Clip::fade_in` / `fade_out`
+      envelope helpers (`FadeCurve`: linear/smooth/ease-in/ease-out) merged
+      into the `opacity` keyframe track; also exposed on `ClipSpec`
+- [x] GPU-side proxy scaling — investigated and rejected: decoded frames
       are CPU-side, so GPU downscale would still require uploading the
       full-resolution frame (~128 MB for 8K) versus the ~8 MB proxy upload.
       The CPU Triangle filter avoids that bandwidth spike; revisit only if
       decoders ever output GPU-resident frames
-- [ ] Per-clip blend opacity curves
-- [ ] Audio sync hooks with `tpt-audio` (frame-to-audio-clock alignment)
 
 ### Quality & performance
 - [x] Criterion benchmark suite (`composite_640x360_vignette`; exits
       gracefully without a GPU)
+- [x] Fuzz targets for the `.cube` parser and `Session` JSON
+      (`fuzz/`, cargo-fuzz), plus a `fuzz-smoke` CI job; Windows ASAN
+      limitation documented
 - [x] Multi-track opacity/blend interaction tests (track opacity × clip
       opacity over an opaque backdrop)
 - [x] MSRV job in CI — verified on Rust 1.85 (the spec's 1.75 floor predates
       the current transitive dependency graph: image 0.25.10+ and
       hashbrown 0.17 are edition-2024)
-- [ ] Fuzz targets for the `.cube` parser and AVI reader-side assumptions
 
-### Packaging & adoption
+### Packaging & docs
+- [x] Comprehensive per-crate `README.md` (overview, features, install,
+      example, testing, license) for all six crates
+- [x] Per-crate `CHANGELOG.md` for all six crates
+- [x] Expanded `keywords`/`categories` on all six crates (crates.io-valid
+      category slugs)
 - [x] `CHANGELOG.md` with the 0.1.0 milestone
 - [x] `docs/session-json.md` — documented JSON schema for timeline documents
       with a committed `examples/session.json` (renders via
@@ -283,50 +290,75 @@ adoption audit); Phase 7 backlog items above stay backlog and are out of
 scope here.
 
 ### Security hardening
-- [ ] `deny.toml` — add `[advisories]` (RUSTSEC db, `yanked = "deny"`) and a
-      minimal `[bans]` table (`multiple-versions = "warn"`); update header
-      comment to reflect advisories+bans, not just licenses
-- [ ] `.github/workflows/ci.yml` — pin all third-party actions
-      (`actions/checkout`, `dtolnay/rust-toolchain`, `Swatinem/rust-cache`,
-      `EmbarkStudios/cargo-deny-action`) to commit SHAs, version kept as a
-      trailing comment
-- [ ] `tpt-av-visual-color/src/luts.rs` (`parse_cube`) — reject
-      `LUT_3D_SIZE`/`LUT_1D_SIZE` above a sane ceiling before allocating, use
-      a checked multiplication instead of unchecked `size*size*size`; add a
-      unit test for the oversized-header rejection
+- [x] `deny.toml` — `[advisories]` (RUSTSEC db, `yanked = "deny"`, RUSTSEC
+      2024-0436 `paste` / 2026-0192 `ttf-parser` unmaintained advisories
+      ignored with rationale — both transitive, not vulnerable) and a
+      minimal `[bans]` table (`multiple-versions = "warn"`, wildcards warn
+      because the kinetix git deps carry no version); header updated
+- [x] `.github/workflows/ci.yml` — all third-party actions pinned to commit
+      SHAs (checkout v5, rust-toolchain stable, rust-cache v2,
+      cargo-deny-action v2), versions as trailing comments
+- [x] `tpt-av-visual-color/src/luts.rs` (`parse_cube`) — rejects
+      `LUT_3D_SIZE` > 512 / `LUT_1D_SIZE` > 65536 before allocating, uses
+      checked multiplication, unit-tested for oversized-header rejection
 
 ### Pin the dev environment
-- [ ] `rust-toolchain.toml` — pin `channel = "1.85"` (matches documented MSRV)
-- [ ] `rustfmt.toml` — explicit project conventions (or a minimal file so
-      local `cargo fmt` can't silently diverge from CI)
-- [ ] `clippy.toml` — anchor for future project-specific lint config
-- [ ] `.editorconfig` — Rust conventions across `*.rs`/`*.toml`/`*.wgsl`/`*.md`
+- [x] `rust-toolchain.toml` — `channel = "1.85"` (matches documented MSRV);
+      workspace reformatted with the 1.85 rustfmt so local formatting cannot
+      diverge from CI
+- [x] `rustfmt.toml` — explicit project conventions (edition, max_width)
+- [x] `clippy.toml` — cognitive-complexity/argument thresholds anchored
+- [x] `.editorconfig` — conventions across `*.rs`/`*.toml`/`*.wgsl`/`*.md`
 
 ### GitHub templates + Dependabot
-- [ ] `.github/ISSUE_TEMPLATE/bug_report.md` + `feature_request.md`
-- [ ] `.github/PULL_REQUEST_TEMPLATE.md` — checklist mirroring
+- [x] `.github/ISSUE_TEMPLATE/bug_report.md` + `feature_request.md`
+- [x] `.github/PULL_REQUEST_TEMPLATE.md` — checklist mirroring
       `CONTRIBUTING.md`'s quality gates
-- [ ] `.github/dependabot.yml` — weekly `cargo` (root + `fuzz/`) and
+- [x] `.github/dependabot.yml` — weekly `cargo` (root + `fuzz/`) and
       `github-actions` ecosystem updates
+
+### Examples README
+- [x] `examples/README.md` — one-line purpose + exact invocation per
+      example, plus the `just`/`cargo` alias shortcuts
 
 ### Examples README
 - [ ] `examples/README.md` — one-line purpose + exact invocation per example,
       plus the `just`/`cargo` alias shortcuts
 
 ### `tpt-visual` CLI (new bin crate)
-- [ ] New workspace member `tpt-visual-cli` (binary `tpt-visual`), thin
-      wrapper over the `tpt-av-visual` facade (no duplicated logic), `clap`
-      derive for real `--help`/subcommands
-- [ ] `tpt-visual render <session.json> [--frames N] [--out out.avi]`
-- [ ] `tpt-visual probe-gpu`
-- [ ] `tpt-visual new <out.json> --preset <name>`
-- [ ] `tpt-visual presets list`
-- [ ] Wire into root `Cargo.toml` members, `justfile`, README tooling section
+- [x] Workspace member `tpt-visual-cli` (binary `tpt-visual`), thin wrapper
+      over the `tpt-av-visual` facade (no duplicated logic), `clap` derive
+      with real `--help`/subcommands
+- [x] `tpt-visual render <session.json> [--frames N] [--out out.avi]
+      [--quality N]`
+- [x] `tpt-visual probe-gpu`
+- [x] `tpt-visual new <out.json> --preset <name>`
+- [x] `tpt-visual presets list`
+- [x] Wired into root `Cargo.toml` members, `justfile` (`just new`,
+      `just presets`, `just probe`), README tooling section
+- [x] All subcommands exercised end-to-end (probe-gpu, presets list, new +
+      render round-trip producing a real AVI)
 
 ### Session preset library
-- [ ] Bundle 3–4 `include_str!`'d session presets in `tpt-visual-cli`
-      (`single-clip`, `two-track-overlay`, `color-graded`), each valid input
-      to `Session::from_json_path`
+- [x] Three `include_str!`'d session presets in `tpt-visual-cli`
+      (`single-clip`, `two-track-overlay`, `color-graded`), each validated
+      against `Session::from_json` in a unit test
+
+---
+
+### Ecosystem & integrations (future)
+- [ ] OCIO v2 transform compilation: compile scanned file transforms into
+      `ColorPipeline` passes (builds on the scanner + name mapping)
+- [ ] Audio sync hooks with `tpt-audio` (frame-to-audio-clock alignment)
+- [ ] Publish crates to crates.io — blocked on `tpt-kinetix` publishing
+      first (git dependencies are rejected by crates.io); then swap the git
+      deps to registry versions in order utils → timeline → effects →
+      color → compositor → facade, and add release automation (release-plz)
+- [ ] Repo-external packaging polish: relocate `examples/` into the facade
+      crate (or add package `include` rules) so published packages carry
+      their examples
+- [ ] Docs site (rustdoc theme + mdBook guide) beyond the current
+      README/DESIGN/docs pages
 
 ---
 

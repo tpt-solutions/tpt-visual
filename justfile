@@ -40,3 +40,15 @@ player *path:
 # Build the documentation and open it
 docs:
     cargo doc --workspace --no-deps --open
+
+# Write a session preset JSON: just new out.json single-clip
+new out="new.json" preset="single-clip":
+    cargo run -p tpt-visual-cli -- new {{out}} --preset {{preset}}
+
+# List bundled session presets
+presets:
+    cargo run -p tpt-visual-cli -- presets list
+
+# GPU diagnostics
+probe:
+    cargo run -p tpt-visual-cli -- probe-gpu

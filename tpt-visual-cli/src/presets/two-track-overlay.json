@@ -1,0 +1,91 @@
+{
+  "id": 1,
+  "name": "two-track-overlay",
+  "frame_rate": { "num": 24, "den": 1 },
+  "resolution": { "width": 1280, "height": 720 },
+  "tracks": [
+    {
+      "id": 1,
+      "name": "Video 1",
+      "clips": [
+        {
+          "id": 1,
+          "asset_id": 1,
+          "start_frame": 0,
+          "source_offset": 0,
+          "duration_frames": 120,
+          "transform": { "position": [0.0, 0.0], "scale": [1.0, 1.0], "rotation": 0.0, "anchor": [0.5, 0.5] },
+          "opacity": 1.0,
+          "blend_mode": "Normal",
+          "keyframes": [],
+          "effects": []
+        }
+      ],
+      "opacity": 1.0,
+      "blend_mode": "Normal",
+      "hidden": false,
+      "locked": false
+    },
+    {
+      "id": 2,
+      "name": "Overlay",
+      "clips": [
+        {
+          "id": 2,
+          "asset_id": 2,
+          "start_frame": 24,
+          "source_offset": 0,
+          "duration_frames": 72,
+          "transform": { "position": [160.0, 90.0], "scale": [0.5, 0.5], "rotation": 4.0, "anchor": [0.5, 0.5] },
+          "opacity": 0.9,
+          "blend_mode": "Screen",
+          "keyframes": [
+            {
+              "property": "opacity",
+              "keyframes": [
+                { "frame": 24, "value": 0.0, "bezier": [0.25, 0.1, 0.25, 1.0] },
+                { "frame": 48, "value": 0.9 },
+                { "frame": 95, "value": 0.9 }
+              ],
+              "interpolation": "Bezier"
+            }
+          ],
+          "effects": []
+        }
+      ],
+      "opacity": 1.0,
+      "blend_mode": "Normal",
+      "hidden": false,
+      "locked": false
+    }
+  ],
+  "assets": {
+    "1": {
+      "id": 1,
+      "file_path": "procedural://base",
+      "duration_frames": 240,
+      "frame_rate": { "num": 24, "den": 1 },
+      "resolution": { "width": 1280, "height": 720 },
+      "pixel_format": "Rgba8",
+      "color_space": "Rec709"
+    },
+    "2": {
+      "id": 2,
+      "file_path": "procedural://overlay",
+      "duration_frames": 240,
+      "frame_rate": { "num": 24, "den": 1 },
+      "resolution": { "width": 640, "height": 360 },
+      "pixel_format": "Rgba8",
+      "color_space": "Rec709"
+    }
+  },
+  "metadata": {
+    "timecode_start_frame": 0,
+    "working_color_space": "Rec709",
+    "description": "Base clip plus a smaller Screen-blended overlay that fades in.",
+    "tags": {}
+  },
+  "next_track_id": 3,
+  "next_clip_id": 3,
+  "next_asset_id": 3
+}

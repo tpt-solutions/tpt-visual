@@ -26,7 +26,7 @@ pub mod track;
 pub mod transform;
 
 pub use asset::VideoAsset;
-pub use clip::{BlendMode, Clip, EffectInstance};
+pub use clip::{BlendMode, Clip, EffectInstance, FadeCurve};
 pub use history::History;
 pub use keyframe::{InterpolationMethod, Keyframe, KeyframeTrack};
 pub use session::{Session, SessionMetadata};

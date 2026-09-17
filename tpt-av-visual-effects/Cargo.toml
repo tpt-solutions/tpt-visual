@@ -7,8 +7,8 @@ license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 authors = ["TPT Solutions"]
-keywords = ["video", "effects", "gpu", "wgsl"]
-categories = ["multimedia::video"]
+keywords = ["video", "effects", "gpu", "wgsl", "shaders", "blur", "chroma-key", "vignette"]
+categories = ["multimedia::video", "graphics", "rendering::engine"]
 
 [dependencies]
 tpt-av-visual-utils = { workspace = true }

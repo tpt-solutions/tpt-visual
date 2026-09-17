@@ -223,6 +223,10 @@ impl EffectRenderer {
         self.device.clone()
     }
 
+    // The entry() API suggested by clippy::map_entry cannot be used here:
+    // building the pipeline needs &self fields while an entry would hold a
+    // &mut borrow of the map.
+    #[allow(clippy::map_entry)]
     fn pipeline_for(
         &mut self,
         shader_source: &'static str,

@@ -7,8 +7,8 @@ license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 authors = ["TPT Solutions"]
-keywords = ["video", "graphics", "wgpu", "media"]
-categories = ["multimedia::video"]
+keywords = ["video", "frame", "pixel-format", "yuv", "resolution", "timecode", "media"]
+categories = ["multimedia::video", "multimedia"]
 
 [dependencies]
 serde = { workspace = true }

@@ -134,6 +134,9 @@ impl PipelineCache {
 
     /// Fetches (building on first use) the fullscreen pipeline for `name`
     /// rendering into `format`.
+    // entry() is not usable here: pipeline creation reads &self fields while
+    // an entry would hold a &mut borrow of the map (clippy::map_entry).
+    #[allow(clippy::map_entry)]
     pub fn get(
         &mut self,
         device: &wgpu::Device,

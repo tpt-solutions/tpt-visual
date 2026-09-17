@@ -126,6 +126,15 @@ cargo run --release -p tpt-av-visual --example simple_player -- clip.mp4
 
 ## Tooling
 
+- **`tpt-visual` CLI** (`tpt-visual-cli`, clap-based):
+
+  ```sh
+  cargo run -p tpt-visual-cli -- render session.json --frames 240 --out out.avi
+  cargo run -p tpt-visual-cli -- probe-gpu
+  cargo run -p tpt-visual-cli -- new new.json --preset single-clip
+  cargo run -p tpt-visual-cli -- presets list
+  ```
+
 - **`justfile`** — `just gate` runs everything CI runs (fmt, clippy, build,
   test, deny); `just demo`, `just render <json>`, `just player <file>`,
   `just docs`. Install with `cargo install just` or read the recipes and run
@@ -133,7 +142,8 @@ cargo run --release -p tpt-av-visual --example simple_player -- clip.mp4
 - **`.cargo/config.toml` aliases** — `cargo lint` (clippy `-D warnings`),
   `cargo check-fmt`, `cargo demo`, `cargo render`.
 - **JSON sessions** — `Session::to_json_path` / `Session::from_json_path`
-  serialize the whole edit document; see the `headless_render` example.
+  serialize the whole edit document; see the `headless_render` example and
+  [docs/session-json.md](docs/session-json.md).
 - **GPU probe** — `tpt_av_visual::probe_gpu()` returns the adapter, backend,
   and driver the engine will use, or `None` on GPU-less machines.
 

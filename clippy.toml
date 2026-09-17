@@ -1,0 +1,5 @@
+# Project-specific clippy configuration. Lint *enforcement* lives in CI
+# (`cargo clippy --workspace --all-targets -- -D warnings`); this file only
+# carries thresholds/options for configurable lints.
+cognitive-complexity-threshold = 30
+too-many-arguments-threshold = 10

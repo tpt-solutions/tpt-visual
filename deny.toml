@@ -1,9 +1,10 @@
-# cargo-deny license audit for tpt-visual.
+# cargo-deny configuration for tpt-visual: license audit, RUSTSEC security
+# advisories, and dependency bans.
 #
-# Only permissive licenses are allowed. cargo-deny v2 semantics: every
-# license NOT in `allow` is rejected (the explicit `deny` key was removed in
-# cargo-deny 0.20 — denying GPL/LGPL/AGPL/MPL is the default), and crates
-# without a detectable license are always rejected.
+# License policy: only permissive licenses are allowed. cargo-deny v2
+# semantics: every license NOT in `allow` is rejected (the explicit `deny`
+# key was removed in cargo-deny 0.20 — denying GPL/LGPL/AGPL/MPL is the
+# default), and crates without a detectable license are always rejected.
 #
 # See CONTRIBUTING.md for the dependency policy and spec section 8 for the
 # rationale.
@@ -24,3 +25,28 @@ allow = [
 ]
 
 confidence-threshold = 0.93
+
+[advisories]
+version = 2
+# RUSTSEC database: deny vulnerabilities and yanked versions.
+yanked = "deny"
+# Unmaintained (not vulnerable) transitive crates we cannot fix upstream;
+# revisited whenever their dependents release updates.
+ignore = [
+    # criterion -> paste: unmaintained but functional, no alternative in
+    # criterion 0.5.
+    "RUSTSEC-2024-0436",
+    # image -> ttf-parser: unmaintained; comes with image's color-metadata
+    # chain, no compatible replacement exposed by image 0.25.
+    "RUSTSEC-2026-0192",
+]
+# vuln.affects = "deny" is the default behaviour for affected crates.
+
+[bans]
+# Multiple versions of the same crate are common in big graphs but should
+# at least be visible; hard-deny only known-problematic duplicates.
+multiple-versions = "warn"
+# Git dependencies (tpt-kinetix) have no version field and count as
+# wildcards, so warn rather than deny.
+wildcards = "warn"
+highlight = "all"

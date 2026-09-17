@@ -209,11 +209,37 @@ pub fn parse_cube(text: &str) -> Result<Cube> {
         }
     }
 
+    // Reject absurd headers before any allocation: a corrupt or malicious
+    // file could otherwise ask for tens of gigabytes.
+    const MAX_3D_SIZE: usize = 512; // 512^3 x 12 B = ~1.5 GiB, hard ceiling
+    const MAX_1D_SIZE: usize = 65536;
     if let Some(size) = lut3d_size {
+        if size > MAX_3D_SIZE {
+            return Err(VisualError::InvalidOperation(format!(
+                "LUT_3D_SIZE {size} exceeds the supported maximum of {MAX_3D_SIZE}"
+            )));
+        }
+        let expected = size
+            .checked_mul(size)
+            .and_then(|n| n.checked_mul(size))
+            .ok_or_else(|| VisualError::InvalidOperation("3D LUT size overflow".into()))?;
+        if entries.len() != expected {
+            return Err(VisualError::InvalidOperation(format!(
+                "3D LUT expects {expected} entries for size {size}, got {}",
+                entries.len()
+            )));
+        }
         return Ok(Cube::Lut3D(Lut3D::new(size, entries)?));
     }
     if let Some(size) = lut1d_size {
-        let expect3 = size * 3;
+        if size > MAX_1D_SIZE {
+            return Err(VisualError::InvalidOperation(format!(
+                "LUT_1D_SIZE {size} exceeds the supported maximum of {MAX_1D_SIZE}"
+            )));
+        }
+        let expect3 = size
+            .checked_mul(3)
+            .ok_or_else(|| VisualError::InvalidOperation("1D LUT size overflow".into()))?;
         if entries.len() == size {
             // Single table replicated per channel.
             let table: Vec<f32> = entries.iter().map(|e| e[0]).collect();
@@ -367,6 +393,18 @@ DOMAIN_MAX 1.0 1.0 1.0
         assert!(close(lut.apply([0.5, 0.5, 0.5])[0], 0.1));
         // Green curve = next `size` entries: [1.0, 0.9].
         assert!(close(lut.apply([0.5, 0.5, 0.5])[1], 0.95));
+    }
+
+    #[test]
+    fn rejects_oversized_headers() {
+        // 100000^3 would be an exabyte allocation — rejected before any.
+        let err = parse_cube("LUT_3D_SIZE 100000").unwrap_err();
+        assert!(err.to_string().contains("exceeds the supported maximum"));
+        assert!(parse_cube("LUT_1D_SIZE 200000").is_err());
+
+        // Values inside the ceiling but larger than the shipped limit still
+        // fail in `Lut3D::new` validation, not with an allocation.
+        assert!(parse_cube("LUT_1D_SIZE 70000").is_err());
     }
 
     #[test]

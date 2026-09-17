@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-use crate::keyframe::KeyframeTrack;
+use crate::keyframe::{InterpolationMethod, Keyframe, KeyframeTrack};
 use crate::transform::Transform;
 use crate::{AssetId, ClipId, Result, TimelineError};
 
@@ -117,6 +117,33 @@ impl EffectInstance {
     #[must_use]
     pub fn param(&self, key: &str, default: f32) -> f32 {
         self.parameters.get(key).copied().unwrap_or(default)
+    }
+}
+
+/// Easing for an opacity fade.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum FadeCurve {
+    /// Constant rate.
+    #[default]
+    Linear,
+    /// Smooth ease-in-out (cubic bezier).
+    Smooth,
+    /// Slow start, fast end.
+    EaseIn,
+    /// Fast start, slow end.
+    EaseOut,
+}
+
+impl FadeCurve {
+    /// The bezier control points this curve maps to; `None` for linear.
+    #[must_use]
+    pub const fn bezier(self) -> Option<(f32, f32, f32, f32)> {
+        match self {
+            FadeCurve::Linear => None,
+            FadeCurve::Smooth => Some((0.42, 0.0, 0.58, 1.0)),
+            FadeCurve::EaseIn => Some((0.42, 0.0, 1.0, 1.0)),
+            FadeCurve::EaseOut => Some((0.0, 0.0, 0.58, 1.0)),
+        }
     }
 }
 
@@ -239,6 +266,87 @@ impl Clip {
         }
     }
 
+    /// Adds an eased fade-in over the first `frames` frames of the clip by
+    /// (re)generating the `opacity` keyframe track. Calling both
+    /// [`Clip::fade_in`] and [`Clip::fade_out`] produces a single track with
+    /// the combined envelope.
+    pub fn fade_in(&mut self, frames: u64, curve: FadeCurve) {
+        let (bezier, interpolation) = match curve.bezier() {
+            Some(b) => (Some(b), InterpolationMethod::Bezier),
+            None => (None, InterpolationMethod::Linear),
+        };
+        let first = self.start_frame;
+        let end = first + frames.min(self.duration_frames);
+        let track = match self.keyframes.iter_mut().find(|k| k.property == "opacity") {
+            Some(track) => track,
+            None => {
+                self.keyframes.push(KeyframeTrack {
+                    property: "opacity".into(),
+                    keyframes: Vec::new(),
+                    interpolation,
+                });
+                self.keyframes.last_mut().expect("just pushed")
+            }
+        };
+        track.interpolation = interpolation;
+        // Replace any keys inside the fade span; outside it the opacity is
+        // held by evaluation clamping (and by the fade-out's keys, if any).
+        track
+            .keyframes
+            .retain(|k| k.frame <= first || k.frame >= end);
+        track.upsert_keyframe(Keyframe {
+            frame: first,
+            value: 0.0,
+            bezier,
+        });
+        track.upsert_keyframe(Keyframe {
+            frame: end,
+            value: 1.0,
+            bezier,
+        });
+    }
+
+    /// Adds an eased fade-out over the last `frames` frames of the clip
+    /// (see [`Clip::fade_in`]).
+    pub fn fade_out(&mut self, frames: u64, curve: FadeCurve) {
+        let (bezier, interpolation) = match curve.bezier() {
+            Some(b) => (Some(b), InterpolationMethod::Bezier),
+            None => (None, InterpolationMethod::Linear),
+        };
+        let start = self
+            .end_frame()
+            .saturating_sub(frames.min(self.duration_frames));
+        let last = self.end_frame().saturating_sub(1);
+        let track = match self.keyframes.iter_mut().find(|k| k.property == "opacity") {
+            Some(track) => track,
+            None => {
+                self.keyframes.push(KeyframeTrack {
+                    property: "opacity".into(),
+                    keyframes: Vec::new(),
+                    interpolation,
+                });
+                self.keyframes.last_mut().expect("just pushed")
+            }
+        };
+        track.interpolation = interpolation;
+        // Replace keys inside the fade span; evaluation clamping holds full
+        // opacity before the first key, so a standalone fade-out needs no
+        // leading anchor (and must not clobber a fade-in's).
+        track
+            .keyframes
+            .retain(|k| k.frame <= start || k.frame > last);
+        track.upsert_keyframe(Keyframe {
+            frame: start,
+            value: 1.0,
+            bezier,
+        });
+        track.upsert_keyframe(Keyframe {
+            frame: last,
+            value: 0.0,
+            bezier,
+        });
+    }
+
     /// Applies keyframed property values at `frame`, returning an effective
     /// transform/opacity snapshot for rendering.
     #[must_use]
@@ -316,6 +424,44 @@ mod tests {
         assert!(c.split(ClipId(2), 20).is_err()); // at end
         assert!(c.split(ClipId(2), 50).is_err()); // beyond
         assert_eq!(c.duration_frames, 10, "failed split must not mutate");
+    }
+
+    #[test]
+    fn fade_in_eases_opacity() {
+        let mut c = clip(100, 60);
+        c.fade_in(30, FadeCurve::Linear);
+        // First frame transparent, last fade frame opaque, holds after.
+        assert_eq!(c.property_value("opacity", 100), 0.0);
+        assert!((c.property_value("opacity", 115) - 0.5).abs() < 1e-4);
+        assert_eq!(c.property_value("opacity", 130), 1.0);
+        assert_eq!(c.property_value("opacity", 159), 1.0);
+    }
+
+    #[test]
+    fn fade_out_and_combined_envelope() {
+        let mut c = clip(0, 100);
+        c.fade_out(20, FadeCurve::Linear);
+        // Clamped to full opacity before the fade.
+        assert_eq!(c.property_value("opacity", 0), 1.0);
+        assert!((c.property_value("opacity", 90) - 0.474).abs() < 0.01);
+        assert_eq!(c.property_value("opacity", 99), 0.0);
+
+        // Fade in 10 + fade out 10 on the same clip merges into one track
+        // with the combined envelope.
+        c.fade_in(10, FadeCurve::Linear);
+        assert_eq!(c.keyframes.len(), 1);
+        assert_eq!(c.property_value("opacity", 0), 0.0);
+        assert_eq!(c.property_value("opacity", 10), 1.0);
+        assert!((c.property_value("opacity", 90) - 0.474).abs() < 0.01);
+        assert_eq!(c.property_value("opacity", 99), 0.0);
+    }
+
+    #[test]
+    fn fade_longer_than_clip_clamps() {
+        let mut c = clip(0, 10);
+        c.fade_in(100, FadeCurve::Linear);
+        // Fade end == clip end: the last rendered frame is at 90% opacity.
+        assert!((c.property_value("opacity", 9) - 0.9).abs() < 1e-4);
     }
 
     #[test]

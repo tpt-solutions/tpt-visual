@@ -6,7 +6,8 @@
 //! [`SessionBuilder::build`] hands back a validated [`Session`].
 
 use crate::timeline::{
-    AssetId, Clip, EffectInstance, KeyframeTrack, Session, TimelineError, Transform, VideoAsset,
+    AssetId, Clip, EffectInstance, FadeCurve, KeyframeTrack, Session, TimelineError, Transform,
+    VideoAsset,
 };
 use crate::utils::{FrameRate, PixelFormat, Resolution};
 use crate::{BlendMode, Result};
@@ -26,6 +27,8 @@ pub struct ClipSpec {
     pub(crate) blend_mode: BlendMode,
     pub(crate) effects: Vec<EffectInstance>,
     pub(crate) keyframes: Vec<KeyframeTrack>,
+    pub(crate) fade_in: Option<(u64, FadeCurve)>,
+    pub(crate) fade_out: Option<(u64, FadeCurve)>,
 }
 
 impl ClipSpec {
@@ -45,7 +48,23 @@ impl ClipSpec {
             blend_mode: BlendMode::Normal,
             effects: Vec::new(),
             keyframes: Vec::new(),
+            fade_in: None,
+            fade_out: None,
         }
+    }
+
+    /// Eased opacity fade-in over the first `frames` frames of the clip.
+    #[must_use]
+    pub fn fade_in(mut self, frames: u64, curve: FadeCurve) -> Self {
+        self.fade_in = Some((frames, curve));
+        self
+    }
+
+    /// Eased opacity fade-out over the last `frames` frames of the clip.
+    #[must_use]
+    pub fn fade_out(mut self, frames: u64, curve: FadeCurve) -> Self {
+        self.fade_out = Some((frames, curve));
+        self
     }
 
     /// Clip duration in session frames.
@@ -248,7 +267,7 @@ impl SessionBuilder {
                     ))
                 })?;
 
-            let clip = Clip {
+            let mut clip = Clip {
                 id: self.session.allocate_clip_id(),
                 asset_id,
                 start_frame: spec.start_frame,
@@ -260,6 +279,12 @@ impl SessionBuilder {
                 keyframes: spec.keyframes,
                 effects: spec.effects,
             };
+            if let Some((frames, curve)) = spec.fade_in {
+                clip.fade_in(frames, curve);
+            }
+            if let Some((frames, curve)) = spec.fade_out {
+                clip.fade_out(frames, curve);
+            }
             self.session
                 .track_checked_mut(track_id)?
                 .insert_clip(clip)?;

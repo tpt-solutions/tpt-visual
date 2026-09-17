@@ -83,8 +83,8 @@ pub mod prelude {
         FrameDecoder, ProceduralDecoder, SolidDecoder, TimelineRenderer,
     };
     pub use tpt_av_visual_timeline::{
-        BlendMode, Clip, EffectInstance, History, InterpolationMethod, Keyframe, KeyframeTrack,
-        Session, Track, Transform, VideoAsset,
+        BlendMode, Clip, EffectInstance, FadeCurve, History, InterpolationMethod, Keyframe,
+        KeyframeTrack, Session, Track, Transform, VideoAsset,
     };
     pub use tpt_av_visual_utils::{FrameRate, PixelFormat, Resolution, Timecode, VideoFrame};
 }

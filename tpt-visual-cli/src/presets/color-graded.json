@@ -1,0 +1,90 @@
+{
+  "id": 1,
+  "name": "color-graded",
+  "frame_rate": { "num": 24, "den": 1 },
+  "resolution": { "width": 1280, "height": 720 },
+  "tracks": [
+    {
+      "id": 1,
+      "name": "Video 1",
+      "clips": [
+        {
+          "id": 1,
+          "asset_id": 1,
+          "start_frame": 0,
+          "source_offset": 0,
+          "duration_frames": 120,
+          "transform": { "position": [0.0, 0.0], "scale": [1.0, 1.0], "rotation": 0.0, "anchor": [0.5, 0.5] },
+          "opacity": 1.0,
+          "blend_mode": "Normal",
+          "keyframes": [],
+          "effects": [
+            {
+              "effect_name": "color_correct",
+              "parameters": { "brightness": 0.02, "contrast": 0.15, "saturation": 1.2, "hue": 0.0 }
+            },
+            {
+              "effect_name": "vignette",
+              "parameters": { "amount": 0.55, "radius": 0.75, "softness": 0.5 }
+            }
+          ]
+        }
+      ],
+      "opacity": 1.0,
+      "blend_mode": "Normal",
+      "hidden": false,
+      "locked": false
+    },
+    {
+      "id": 2,
+      "name": "Tint",
+      "clips": [
+        {
+          "id": 2,
+          "asset_id": 2,
+          "start_frame": 0,
+          "source_offset": 0,
+          "duration_frames": 120,
+          "transform": { "position": [0.0, 0.0], "scale": [1.3, 1.3], "rotation": -8.0, "anchor": [0.5, 0.5] },
+          "opacity": 0.5,
+          "blend_mode": "Color",
+          "keyframes": [],
+          "effects": []
+        }
+      ],
+      "opacity": 1.0,
+      "blend_mode": "Normal",
+      "hidden": false,
+      "locked": false
+    }
+  ],
+  "assets": {
+    "1": {
+      "id": 1,
+      "file_path": "procedural://base",
+      "duration_frames": 240,
+      "frame_rate": { "num": 24, "den": 1 },
+      "resolution": { "width": 1280, "height": 720 },
+      "pixel_format": "Rgba8",
+      "color_space": "Rec709"
+    },
+    "2": {
+      "id": 2,
+      "file_path": "procedural://tint",
+      "duration_frames": 240,
+      "frame_rate": { "num": 24, "den": 1 },
+      "resolution": { "width": 640, "height": 360 },
+      "pixel_format": "Rgba8",
+      "color_space": "Rec709"
+    }
+  },
+  "metadata": {
+    "timecode_start_frame": 0,
+    "working_color_space": "Rec709",
+    "description": "HDR-style grade: color-corrected base plus a Color-blended rotating tint.",
+    "tags": {}
+  },
+  "next_track_id": 3,
+  "next_clip_id": 3,
+  "next_asset_id": 3
+}

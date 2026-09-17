@@ -1,0 +1,6 @@
+# Project formatting conventions. Keep minimal — `cargo fmt --check` in CI
+# is the enforcement point; anything configured here must match what CI's
+# stable rustfmt actually applies.
+edition = "2021"
+max_width = 100
+use_small_heuristics = "Default"

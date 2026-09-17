@@ -7,8 +7,8 @@ license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 authors = ["TPT Solutions"]
-keywords = ["color", "hdr", "aces", "lut"]
-categories = ["multimedia::video"]
+keywords = ["color", "color-science", "hdr", "aces", "lut", "gamut", "tone-mapping", "pq"]
+categories = ["multimedia::video", "graphics", "rendering::data-formats"]
 
 [dependencies]
 tpt-av-visual-utils = { workspace = true }

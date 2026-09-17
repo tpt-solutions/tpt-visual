@@ -7,8 +7,8 @@ license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 authors = ["TPT Solutions"]
-keywords = ["video", "gpu", "compositor", "wgpu"]
-categories = ["multimedia::video", "rendering::engine"]
+keywords = ["video", "gpu", "compositor", "wgpu", "webgpu", "real-time", "rendering"]
+categories = ["multimedia::video", "rendering::engine", "graphics"]
 
 [features]
 default = ["kinetix"]

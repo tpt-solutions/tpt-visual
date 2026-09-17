@@ -183,6 +183,9 @@ impl VideoAssetCache {
         Ok(&self.gpu_textures[&frame])
     }
 
+    // The contains_key/insert pair below cannot use entry(): the inserted
+    // value requires &mut self (decode_sync), which an entry would hold.
+    #[allow(clippy::map_entry)]
     fn decode_and_upload(
         &mut self,
         frame: u64,
@@ -195,13 +198,11 @@ impl VideoAssetCache {
         if self.proxy.is_some() {
             if !self.proxy_frames.contains_key(&frame) {
                 let decoded = self.decode_sync(frame, false)?;
-                self.proxy_frames.insert(
-                    frame,
-                    Arc::new(generate_proxy(
-                        &decoded,
-                        self.proxy.map_or(1080, |c| c.target_height),
-                    )),
-                );
+                let proxied = Arc::new(generate_proxy(
+                    &decoded,
+                    self.proxy.map_or(1080, |c| c.target_height),
+                ));
+                self.proxy_frames.insert(frame, proxied);
             }
             let proxied = self.proxy_frames[&frame].clone();
             let texture = GpuTexture::upload(device, queue, encoder, &proxied, yuv_pipeline)?;
