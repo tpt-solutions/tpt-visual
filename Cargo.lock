@@ -1985,6 +1985,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "tpt-av-test-reference"
+version = "0.1.0"
+source = "git+https://github.com/tpt-solutions/tpt-av-test?rev=b214cf7991e06439a79f8653aa07b356e8efbf94#b214cf7991e06439a79f8653aa07b356e8efbf94"
+dependencies = [
+ "image",
+]
+
+[[package]]
 name = "tpt-av-visual"
 version = "0.1.0"
 dependencies = [
@@ -2044,10 +2052,12 @@ name = "tpt-av-visual-effects"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+ "image",
  "log",
  "pollster",
  "serde",
  "thiserror 2.0.20",
+ "tpt-av-test-reference",
  "tpt-av-visual-utils",
  "wgpu",
 ]

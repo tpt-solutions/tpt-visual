@@ -37,6 +37,9 @@ tpt-kinetix-core = { git = "https://github.com/tpt-solutions/tpt-kinetix", rev =
 tpt-kinetix-demux = { git = "https://github.com/tpt-solutions/tpt-kinetix", rev = "9747a2b17c77479377f69ad2f2621e1ed674b518" }
 tpt-kinetix-h264 = { git = "https://github.com/tpt-solutions/tpt-kinetix", rev = "9747a2b17c77479377f69ad2f2621e1ed674b518" }
 
+# Golden-master conformance harness (dev-dependency only), pinned for reproducible builds.
+tpt-av-test-reference = { git = "https://github.com/tpt-solutions/tpt-av-test", rev = "b214cf7991e06439a79f8653aa07b356e8efbf94" }
+
 # GPU abstraction (WebGPU) and friends.
 wgpu = "0.19"
 pollster = "0.3"
