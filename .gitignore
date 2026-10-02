@@ -16,3 +16,5 @@ Thumbs.db
 *.swp
 *.swo
 *~
+# tpt-weave working state
+/.tpt-weave/
