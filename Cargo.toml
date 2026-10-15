@@ -41,7 +41,7 @@ tpt-kinetix-h264 = { git = "https://github.com/tpt-solutions/tpt-kinetix", rev =
 tpt-av-test-reference = { git = "https://github.com/tpt-solutions/tpt-av-test", rev = "b214cf7991e06439a79f8653aa07b356e8efbf94" }
 
 # GPU abstraction (WebGPU) and friends.
-wgpu = "0.19"
+wgpu = "30.0"
 pollster = "0.3"
 winit = "0.29"
 bytemuck = { version = "1.14", features = ["derive"] }
