@@ -47,9 +47,9 @@ fn read_back(
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
     encoder.copy_texture_to_buffer(
         texture.as_image_copy(),
-        wgpu::ImageCopyBuffer {
+        wgpu::TexelCopyBufferInfo {
             buffer: &readback,
-            layout: wgpu::ImageDataLayout {
+            layout: wgpu::TexelCopyBufferLayout {
                 offset: 0,
                 bytes_per_row: Some(BPR),
                 rows_per_image: None,
@@ -65,9 +65,14 @@ fn read_back(
     let (tx, rx) = std::sync::mpsc::channel::<Result<(), wgpu::BufferAsyncError>>();
     let slice = readback.slice(..);
     slice.map_async(wgpu::MapMode::Read, move |r| tx.send(r).unwrap());
-    device.poll(wgpu::Maintain::Wait);
+    device
+        .poll(wgpu::PollType::Wait {
+            submission_index: None,
+            timeout: None,
+        })
+        .unwrap();
     rx.recv().unwrap().expect("map");
-    let mapped = slice.get_mapped_range();
+    let mapped = slice.get_mapped_range().expect("mapped range");
     let mut out = Vec::with_capacity((width * height * 4) as usize);
     for row in 0..height {
         let start = (row * BPR) as usize;
@@ -149,6 +154,7 @@ fn full_pipeline_renders_changing_frames() {
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: &view,
                 resolve_target: None,
+                depth_slice: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color::BLUE),
                     store: wgpu::StoreOp::Store,
@@ -157,6 +163,7 @@ fn full_pipeline_renders_changing_frames() {
             depth_stencil_attachment: None,
             timestamp_writes: None,
             occlusion_query_set: None,
+            multiview_mask: None,
         });
         drop(pass);
         queue.submit(Some(enc.finish()));

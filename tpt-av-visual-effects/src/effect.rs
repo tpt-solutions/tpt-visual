@@ -187,7 +187,7 @@ impl EffectRenderer {
             queue.write_texture(
                 texture.as_image_copy(),
                 &[255_u8, 255, 255, 255],
-                wgpu::ImageDataLayout {
+                wgpu::TexelCopyBufferLayout {
                     offset: 0,
                     bytes_per_row: Some(4),
                     rows_per_image: None,
@@ -243,8 +243,8 @@ impl EffectRenderer {
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("tpt-visual: effect pipeline layout"),
-                    bind_group_layouts: &[&self.bind_layout],
-                    push_constant_ranges: &[],
+                    bind_group_layouts: &[Some(&self.bind_layout)],
+                    immediate_size: 0,
                 });
             let pipeline = self
                 .device
@@ -253,12 +253,14 @@ impl EffectRenderer {
                     layout: Some(&layout),
                     vertex: wgpu::VertexState {
                         module: &shader,
-                        entry_point: "vs_main",
+                        entry_point: Some("vs_main"),
+                        compilation_options: Default::default(),
                         buffers: &[],
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: &shader,
-                        entry_point: "fs_main",
+                        entry_point: Some("fs_main"),
+                        compilation_options: Default::default(),
                         targets: &[Some(wgpu::ColorTargetState {
                             format,
                             blend: None,
@@ -268,7 +270,8 @@ impl EffectRenderer {
                     primitive: wgpu::PrimitiveState::default(),
                     depth_stencil: None,
                     multisample: wgpu::MultisampleState::default(),
-                    multiview: None,
+                    multiview_mask: None,
+                    cache: None,
                 });
             self.pipelines.insert((shader_source, format), pipeline);
         }
@@ -315,7 +318,7 @@ impl EffectRenderer {
             self.queue.write_texture(
                 texture.as_image_copy(),
                 &data,
-                wgpu::ImageDataLayout {
+                wgpu::TexelCopyBufferLayout {
                     offset: 0,
                     bytes_per_row: Some(256 * 4),
                     rows_per_image: None,
@@ -363,6 +366,7 @@ impl EffectRenderer {
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: output,
                 resolve_target: None,
+                depth_slice: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
                     store: wgpu::StoreOp::Store,
@@ -371,6 +375,7 @@ impl EffectRenderer {
             depth_stencil_attachment: None,
             timestamp_writes: None,
             occlusion_query_set: None,
+            multiview_mask: None,
         });
         pass.set_pipeline(pipeline);
         pass.set_bind_group(0, &bind_group, &[]);

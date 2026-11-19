@@ -46,7 +46,7 @@ fn gpu_pipeline_matches_cpu_reference() {
     queue.write_texture(
         src_tex.as_image_copy(),
         &src_data,
-        wgpu::ImageDataLayout {
+        wgpu::TexelCopyBufferLayout {
             offset: 0,
             bytes_per_row: Some(size * 4),
             rows_per_image: None,
@@ -99,9 +99,9 @@ fn gpu_pipeline_matches_cpu_reference() {
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
     encoder.copy_texture_to_buffer(
         dst_tex.as_image_copy(),
-        wgpu::ImageCopyBuffer {
+        wgpu::TexelCopyBufferInfo {
             buffer: &readback,
-            layout: wgpu::ImageDataLayout {
+            layout: wgpu::TexelCopyBufferLayout {
                 offset: 0,
                 bytes_per_row: Some(BYTES_PER_ROW),
                 rows_per_image: None,
@@ -120,10 +120,15 @@ fn gpu_pipeline_matches_cpu_reference() {
     slice.map_async(wgpu::MapMode::Read, move |result| {
         tx.send(result).unwrap();
     });
-    device.poll(wgpu::Maintain::Wait);
+    device
+        .poll(wgpu::PollType::Wait {
+            submission_index: None,
+            timeout: None,
+        })
+        .unwrap();
     rx.recv().unwrap().expect("map");
 
-    let data: Vec<u8> = slice.get_mapped_range().to_vec();
+    let data: Vec<u8> = slice.get_mapped_range().expect("mapped range").to_vec();
     let _ = &slice;
 
     // CPU reference: the same 8-bit code through apply_pixel.

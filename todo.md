@@ -111,7 +111,7 @@ of the TPT AV Stack (TPT Solutions). Dual-licensed **MIT OR Apache-2.0**.
 ### Examples
 - [x] `examples/headless_render.rs` — renders a timeline JSON to a video file
       (MJPEG AVI writer, no copyleft dependencies)
-- [x] `examples/simple_player.rs` — plays a single video file (winit + surface,
+- [x] `examples/simple_player.rs` — plays a single video file (tpt-window + surface,
       H.264 via the `kinetix` feature, procedural fallback)
 - [x] `examples/compositor_demo.rs` — composites multiple video layers
 
@@ -271,8 +271,21 @@ of the TPT AV Stack (TPT Solutions). Dual-licensed **MIT OR Apache-2.0**.
 - [x] Cargo.lock committed for the workspace (example binaries ship);
       pinned to lockfile format v3 and image 0.25.5 for MSRV 1.85
       compatibility
-- [x] `winit` is dev-dependency-only (example machines do not inherit it);
+- [x] Windowing comes from `tpt-window` (dev-dependency only; example machines
+      do not inherit it). `winit` is gone from the workspace.
       `image` stays a real dependency (used by proxies/AVI/PNG export)
+- [x] wgpu 30 port: the lockfile had wgpu 0.19 pinned while `Cargo.toml` asked
+      for 30, and the color/effects/compositor crates used the pre-30 API. Ported
+      (descriptor fields, `TexelCopyBufferLayout`/`TexelCopyBufferInfo`,
+      `PollType`, `CurrentSurfaceTexture`, `queue.present`).
+- [ ] MSRV conflict: wgpu 30.0.2 requires rustc 1.87, but the toolchain file and
+      `rust-version` say 1.85. Decide: raise to 1.87, or pin wgpu back to 29.
+- [ ] BGRA surface bug in the compositor: nodes (blend, mask, transform,
+      transition, effect) build pipelines with `ctx.target_format` but render into
+      `Rgba8Unorm` intermediates. A BGRA surface fails validation ("render pass
+      uses Rgba8Unorm, pipeline uses Bgra8Unorm"). Only RGBA surfaces work today,
+      so `simple_player` prefers RGBA. Fix: intermediates use Rgba8Unorm; only
+      the output node uses the target format.
 - [ ] Publish crates to crates.io (`tpt-av-visual` facade + members) with
       release automation (e.g. release-plz, matching tpt-kinetix).
       Ordering constraint found during review: publish utils → timeline →

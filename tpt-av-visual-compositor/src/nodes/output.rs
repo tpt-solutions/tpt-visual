@@ -80,6 +80,7 @@ impl CompositorNode for OutputNode {
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: output,
                 resolve_target: None,
+                depth_slice: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
                     store: wgpu::StoreOp::Store,
@@ -88,6 +89,7 @@ impl CompositorNode for OutputNode {
             depth_stencil_attachment: None,
             timestamp_writes: None,
             occlusion_query_set: None,
+            multiview_mask: None,
         });
         pass.set_pipeline(&pipeline);
         pass.set_bind_group(0, &bind_group, &[]);

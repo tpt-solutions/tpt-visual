@@ -92,7 +92,7 @@ impl GpuTexture {
         queue.write_texture(
             texture.as_image_copy(),
             rgba,
-            wgpu::ImageDataLayout {
+            wgpu::TexelCopyBufferLayout {
                 offset: 0,
                 bytes_per_row: Some(width * 4),
                 rows_per_image: None,
@@ -196,7 +196,7 @@ fn upload_planes(
         queue.write_texture(
             texture.as_image_copy(),
             data,
-            wgpu::ImageDataLayout {
+            wgpu::TexelCopyBufferLayout {
                 offset: 0,
                 bytes_per_row: Some(w),
                 rows_per_image: None,
@@ -282,6 +282,7 @@ pub fn run_yuv_conversion(
         color_attachments: &[Some(wgpu::RenderPassColorAttachment {
             view: target,
             resolve_target: None,
+            depth_slice: None,
             ops: wgpu::Operations {
                 load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
                 store: wgpu::StoreOp::Store,
@@ -290,6 +291,7 @@ pub fn run_yuv_conversion(
         depth_stencil_attachment: None,
         timestamp_writes: None,
         occlusion_query_set: None,
+        multiview_mask: None,
     });
     pass.set_pipeline(pipeline);
     pass.set_bind_group(0, &bind_group, &[]);

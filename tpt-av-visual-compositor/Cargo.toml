@@ -36,7 +36,6 @@ tpt-kinetix-demux = { workspace = true, optional = true }
 tpt-kinetix-h264 = { workspace = true, optional = true }
 
 [dev-dependencies]
-winit = { workspace = true }
 anyhow = { workspace = true }
 criterion = { workspace = true }
 

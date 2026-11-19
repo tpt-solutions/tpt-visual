@@ -248,9 +248,9 @@ impl TimelineRenderer {
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
         encoder.copy_texture_to_buffer(
             target.texture.as_image_copy(),
-            wgpu::ImageCopyBuffer {
+            wgpu::TexelCopyBufferInfo {
                 buffer: &target.readback,
-                layout: wgpu::ImageDataLayout {
+                layout: wgpu::TexelCopyBufferLayout {
                     offset: 0,
                     bytes_per_row: Some(target.bytes_per_row),
                     rows_per_image: None,
@@ -267,12 +267,19 @@ impl TimelineRenderer {
         let (tx, rx) = std::sync::mpsc::channel();
         let slice = target.readback.slice(..);
         slice.map_async(wgpu::MapMode::Read, move |r| tx.send(r).unwrap());
-        device.poll(wgpu::Maintain::Wait);
+        device
+            .poll(wgpu::PollType::Wait {
+                submission_index: None,
+                timeout: None,
+            })
+            .map_err(|e| CompositorError::Gpu(e.to_string()))?;
         rx.recv()
             .map_err(|e| CompositorError::Gpu(e.to_string()))?
             .map_err(|e| CompositorError::Gpu(e.to_string()))?;
 
-        let mapped = slice.get_mapped_range();
+        let mapped = slice
+            .get_mapped_range()
+            .map_err(|e| CompositorError::Gpu(e.to_string()))?;
         let row_bytes = (resolution.width * 4) as usize;
         let mut out = Vec::with_capacity(row_bytes * resolution.height as usize);
         for row in 0..resolution.height {

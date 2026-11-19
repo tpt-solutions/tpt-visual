@@ -33,7 +33,7 @@ fn run_chain(
     queue.write_texture(
         src_tex.as_image_copy(),
         src,
-        wgpu::ImageDataLayout {
+        wgpu::TexelCopyBufferLayout {
             offset: 0,
             bytes_per_row: Some(width * 4),
             rows_per_image: None,
@@ -92,9 +92,9 @@ fn run_chain(
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
     encoder.copy_texture_to_buffer(
         out_tex.as_image_copy(),
-        wgpu::ImageCopyBuffer {
+        wgpu::TexelCopyBufferInfo {
             buffer: &readback,
-            layout: wgpu::ImageDataLayout {
+            layout: wgpu::TexelCopyBufferLayout {
                 offset: 0,
                 bytes_per_row: Some(bpr),
                 rows_per_image: None,
@@ -111,10 +111,15 @@ fn run_chain(
     let (tx, rx) = std::sync::mpsc::channel::<Result<(), wgpu::BufferAsyncError>>();
     let slice = readback.slice(..);
     slice.map_async(wgpu::MapMode::Read, move |r| tx.send(r).unwrap());
-    device.poll(wgpu::Maintain::Wait);
+    device
+        .poll(wgpu::PollType::Wait {
+            submission_index: None,
+            timeout: None,
+        })
+        .unwrap();
     rx.recv().unwrap().expect("map");
 
-    let mapped = slice.get_mapped_range();
+    let mapped = slice.get_mapped_range().expect("mapped range");
     let mut out = Vec::with_capacity((width * height * 4) as usize);
     for row in 0..height {
         let start = (row * bpr) as usize;

@@ -56,22 +56,22 @@ impl GpuContext {
     /// Returns `None` when no adapter exists (e.g. GPU-less CI runners).
     #[must_use]
     pub fn headless() -> Option<Self> {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
             power_preference: wgpu::PowerPreference::HighPerformance,
             compatible_surface: None,
             force_fallback_adapter: false,
-        }))?;
-        let (device, queue) = pollster::block_on(adapter.request_device(
-            &wgpu::DeviceDescriptor {
-                label: Some("tpt-visual compositor device"),
-                required_features: wgpu::Features::empty(),
-                required_limits: wgpu::Limits::default(),
-            },
-            None,
-        ))
+            ..Default::default()
+        }))
         .ok()?;
-        device.on_uncaptured_error(Box::new(|err| {
+        let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
+            label: Some("tpt-visual compositor device"),
+            required_features: wgpu::Features::empty(),
+            required_limits: wgpu::Limits::default(),
+            ..Default::default()
+        }))
+        .ok()?;
+        device.on_uncaptured_error(Arc::new(|err: wgpu::Error| {
             panic!("tpt-visual wgpu error: {err}");
         }));
         Some(Self {
