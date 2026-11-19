@@ -57,8 +57,13 @@ impl CompositorNode for EffectNode {
                 let last = pass_index == total_passes;
                 let source: &wgpu::TextureView = cursor_view.as_ref().unwrap_or(&input);
                 if last {
-                    ctx.effects
-                        .render_pass(ctx.encoder, desc, source, output, ctx.target_format);
+                    ctx.effects.render_pass(
+                        ctx.encoder,
+                        desc,
+                        source,
+                        output,
+                        crate::node::INTERMEDIATE_FORMAT,
+                    );
                 } else {
                     let texture = ctx.pool.acquire(
                         ctx.device,
@@ -67,8 +72,13 @@ impl CompositorNode for EffectNode {
                         wgpu::TextureUsages::RENDER_ATTACHMENT,
                     );
                     let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-                    ctx.effects
-                        .render_pass(ctx.encoder, desc, source, &view, ctx.target_format);
+                    ctx.effects.render_pass(
+                        ctx.encoder,
+                        desc,
+                        source,
+                        &view,
+                        crate::node::INTERMEDIATE_FORMAT,
+                    );
                     cursor_view = Some(view);
                     scratch.push(texture);
                 }

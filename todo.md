@@ -278,14 +278,13 @@ of the TPT AV Stack (TPT Solutions). Dual-licensed **MIT OR Apache-2.0**.
       for 30, and the color/effects/compositor crates used the pre-30 API. Ported
       (descriptor fields, `TexelCopyBufferLayout`/`TexelCopyBufferInfo`,
       `PollType`, `CurrentSurfaceTexture`, `queue.present`).
-- [ ] MSRV conflict: wgpu 30.0.2 requires rustc 1.87, but the toolchain file and
-      `rust-version` say 1.85. Decide: raise to 1.87, or pin wgpu back to 29.
-- [ ] BGRA surface bug in the compositor: nodes (blend, mask, transform,
-      transition, effect) build pipelines with `ctx.target_format` but render into
-      `Rgba8Unorm` intermediates. A BGRA surface fails validation ("render pass
-      uses Rgba8Unorm, pipeline uses Bgra8Unorm"). Only RGBA surfaces work today,
-      so `simple_player` prefers RGBA. Fix: intermediates use Rgba8Unorm; only
-      the output node uses the target format.
+- [x] MSRV raised to 1.87 (`rust-toolchain.toml` and `rust-version`), the
+      minimum wgpu 30.0.2 needs. `ordered-float` is pinned to 5.4.0 because
+      5.5.x needs 1.90. Full workspace tests, clippy and fmt pass on 1.87.
+- [x] BGRA surface fix: intermediate nodes render to `INTERMEDIATE_FORMAT`
+      (Rgba8Unorm); only the output node uses the target format. Regression test
+      `bgra_target_renders_without_validation_error` fails without the fix.
+      `simple_player` prefers BGRA again and runs on it.
 - [ ] Publish crates to crates.io (`tpt-av-visual` facade + members) with
       release automation (e.g. release-plz, matching tpt-kinetix).
       Ordering constraint found during review: publish utils → timeline →

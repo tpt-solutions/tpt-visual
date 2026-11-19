@@ -72,9 +72,12 @@ impl CompositorNode for TransformNode {
                 "transform node has no input".into(),
             ));
         };
-        let pipeline =
-            ctx.pipelines
-                .get(ctx.device, ctx.shaders, "transform", ctx.target_format)?;
+        let pipeline = ctx.pipelines.get(
+            ctx.device,
+            ctx.shaders,
+            "transform",
+            crate::node::INTERMEDIATE_FORMAT,
+        )?;
         let sampler = ctx.device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some("tpt-visual: transform sampler"),
             address_mode_u: wgpu::AddressMode::ClampToEdge,

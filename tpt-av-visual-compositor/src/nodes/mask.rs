@@ -101,9 +101,12 @@ impl CompositorNode for MaskNode {
             }
         };
 
-        let pipeline = ctx
-            .pipelines
-            .get(ctx.device, ctx.shaders, "mask", ctx.target_format)?;
+        let pipeline = ctx.pipelines.get(
+            ctx.device,
+            ctx.shaders,
+            "mask",
+            crate::node::INTERMEDIATE_FORMAT,
+        )?;
         let sampler = ctx
             .device
             .create_sampler(&wgpu::SamplerDescriptor::default());

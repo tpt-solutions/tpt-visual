@@ -266,3 +266,45 @@ fn prefetch_threads_shut_down_cleanly() {
     // Dropping the renderer stops and joins the prefetch thread.
     drop(renderer);
 }
+
+#[test]
+fn bgra_target_renders_without_validation_error() {
+    // A BGRA surface used to fail validation: intermediate passes rendered to
+    // RGBA while their pipelines were built for the BGRA target.
+    let (session, asset) = test_session();
+    let mut renderer = match TimelineRenderer::headless(session) {
+        Ok(Some(renderer)) => renderer,
+        Ok(None) => {
+            eprintln!("skipping: no GPU adapter available");
+            return;
+        }
+        Err(e) => panic!("{e}"),
+    };
+    renderer.attach_asset(
+        asset,
+        Box::new(ProceduralDecoder::new(
+            FrameRate::film(),
+            Resolution::new(64, 64).unwrap(),
+        )),
+    );
+    let device = renderer.compositor_mut().gpu().device().clone();
+    let target = device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("bgra target"),
+        size: wgpu::Extent3d {
+            width: 64,
+            height: 64,
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Bgra8Unorm,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+        view_formats: &[],
+    });
+    let view = target.create_view(&wgpu::TextureViewDescriptor::default());
+    renderer
+        .render_frame_into(&view, wgpu::TextureFormat::Bgra8Unorm)
+        .expect("BGRA frame");
+    assert_eq!(renderer.playhead(), 1);
+}

@@ -42,9 +42,12 @@ impl CompositorNode for BlendNode {
                 "blend node requires two inputs".into(),
             ));
         };
-        let pipeline = ctx
-            .pipelines
-            .get(ctx.device, ctx.shaders, "blend", ctx.target_format)?;
+        let pipeline = ctx.pipelines.get(
+            ctx.device,
+            ctx.shaders,
+            "blend",
+            crate::node::INTERMEDIATE_FORMAT,
+        )?;
         let sampler = ctx
             .device
             .create_sampler(&wgpu::SamplerDescriptor::default());

@@ -39,6 +39,10 @@ impl Affine2x3 {
     };
 }
 
+/// Format of every intermediate texture a node renders into. Only the output
+/// node writes to the caller's target, in [`NodeFrame::target_format`].
+pub const INTERMEDIATE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
+
 /// Per-frame rendering context handed to nodes.
 pub struct NodeFrame<'a> {
     /// Logical device.
@@ -55,8 +59,8 @@ pub struct NodeFrame<'a> {
     pub pool: &'a mut TexturePool,
     /// Canvas resolution for this render.
     pub resolution: Resolution,
-    /// Pixel format of node render targets (pooled textures are
-    /// Rgba8Unorm; the final target may be a surface format).
+    /// Pixel format of the final target only (for example a surface's
+    /// BGRA or RGBA). Intermediate nodes render to [`INTERMEDIATE_FORMAT`].
     pub target_format: wgpu::TextureFormat,
     /// Effect runner for effect-chain nodes.
     pub effects: &'a mut crate::renderer::FrameEffectRunner,

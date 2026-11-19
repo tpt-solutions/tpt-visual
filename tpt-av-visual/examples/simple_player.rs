@@ -7,8 +7,8 @@
 //! ```
 //!
 //! The window is provided by `tpt-window`; the surface is created from its raw
-//! handles. The surface is RGBA: a BGRA surface does not work yet (see the
-//! compositor note in `todo.md`).
+//! handles. The window surface's BGRA format triggers the compositor's
+//! final-blit R/B swap automatically.
 
 use std::time::{Duration, Instant};
 
@@ -71,16 +71,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }?;
 
     let caps = surface.get_capabilities(&adapter);
-    // Prefer RGBA. The compositor's intermediate passes render to RGBA textures,
-    // so a BGRA surface currently fails validation (see tpt-visual todo.md).
-    // Do not take the first match: wgpu 30 lists formats in a different order.
+    // Prefer BGRA so the final blit swaps R/B. Do not take the first match:
+    // wgpu 30 lists formats in a different order.
     let surface_format = [
-        wgpu::TextureFormat::Rgba8Unorm,
         wgpu::TextureFormat::Bgra8Unorm,
+        wgpu::TextureFormat::Rgba8Unorm,
     ]
     .into_iter()
     .find(|want| caps.formats.contains(want))
-    .unwrap_or(wgpu::TextureFormat::Rgba8Unorm);
+    .unwrap_or(wgpu::TextureFormat::Bgra8Unorm);
     let size = window.size();
     let mut config = wgpu::SurfaceConfiguration {
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
