@@ -42,7 +42,7 @@ tpt-av-test-reference = { git = "https://github.com/tpt-solutions/tpt-av-test", 
 
 # GPU abstraction (WebGPU) and friends.
 wgpu = "30.0"
-pollster = "0.3"
+pollster = "1.0"
 tpt-window = { git = "https://github.com/tpt-solutions/tpt-window" }
 bytemuck = { version = "1.14", features = ["derive"] }
 arc-swap = "1.7"
